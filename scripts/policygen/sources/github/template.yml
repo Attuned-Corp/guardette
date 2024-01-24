@@ -1,0 +1,5 @@
+source:
+  host: api.github.com
+  auth: bearer_token:github
+  rules:
+    - route: "GET /repos/{owner}/{repo}/pulls"

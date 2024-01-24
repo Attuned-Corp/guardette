@@ -1,0 +1,38 @@
+config:
+  recruiting:
+    default: true
+source:
+  host: www.googleapis.com
+  auth: gcp_service_account
+  rules:
+    - route: "GET /calendar/v3/calendars/{calendarId}"
+      actions:
+        - kind: redact
+          json_paths:
+            - "$.summary"
+    - route: "GET /calendar/v3/calendars/{calendarId}/events"
+      actions:
+        - kind: redact
+          json_paths:
+            - "$..summary"
+            - "$..displayName"
+            - "$.items[*].summary"
+        - kind: remove
+          json_paths:
+            - "$.items[*].attachments"
+            - "$.items[*].conferenceData"
+            - "$.items[*].extendedProperties"
+        - kind: pseudonymize_email
+          json_paths:
+            - "$..email"
+        {% if config.recruiting %}
+        - kind: filter_regex
+          json_paths:
+            - "$.items[*].description"
+          regex_pattern: '\b(https:\/\/[^.]+\.greenhouse\.io\/[^\s]+|https://[^.]+\.ashbyhq\.com\/[^\s]+)\b'
+          delimiter: " "
+        {% else %}
+        - kind: redact
+          json_paths:
+            - "$.items[*].description"
+        {% endif %}

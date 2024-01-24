@@ -1,0 +1,8 @@
+source:
+  host: hacker-news.firebaseio.com
+  rules:
+    - route: "GET /v0/item/{itemId}"
+      actions:
+        - kind: redact
+          json_paths:
+            - "$.title"
