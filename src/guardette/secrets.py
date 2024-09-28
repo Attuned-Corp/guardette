@@ -3,7 +3,7 @@ import typing
 from aiobotocore.session import get_session
 
 from guardette.config import ConfigManager
-from guardette.errors import SecretNotFoundException
+from guardette.exceptions import ConfigurationException
 
 from types_aiobotocore_secretsmanager import SecretsManagerClient
 
@@ -25,7 +25,7 @@ class ConfigSecretsManager:
     async def get(self, key) -> str:
         secret = self.config.get(key)
         if secret is None:
-            raise SecretNotFoundException(key)
+            raise ConfigurationException(key)
         return secret
 
 
@@ -36,7 +36,7 @@ class AwsSecretsManager:
     async def get(self, key) -> str:
         secret_id = self.config.get(key)
         if secret_id is None:
-            raise SecretNotFoundException(key)
+            raise ConfigurationException(key)
 
         session = get_session()
         async with session.create_client("secretsmanager") as client:

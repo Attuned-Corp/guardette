@@ -1,17 +1,26 @@
 import functools
 import logging
 from secrets import compare_digest
-import httpx
 
-from fastapi import FastAPI, Request, HTTPException
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.datastructures import URL, MutableHeaders
 
 from guardette import config
-from guardette.actions import action_registry, ActionContext
+from guardette.actions import ActionContext, action_registry
 from guardette.auth import AuthHandlerRegistry, auth_registry
 from guardette.datastructures import ProxyRequest, ProxyResponse
+from guardette.exceptions import (
+    AuthException,
+    ConfigurationException,
+    GuardetteException,
+    HttpMethodNotSupportedException,
+    MatchNotFoundException,
+    TransformationException,
+)
 from guardette.matching import Matcher, SourceMatcherResult
+from guardette.policy import load_policy
 from guardette.secrets import (
     AwsSecretsManager,
     ConfigSecretsManager,
@@ -19,10 +28,11 @@ from guardette.secrets import (
     SecretsManager,
 )
 from guardette.utils import copy_signature
-from guardette.policy import load_policy
 from guardette.version import VERSION
 
 PROXY_HOST_HEADER = "X-Guardette-Host"
+
+PROXY_ERROR_HEADER = "X-Guardette-Error"
 
 STRIP_REQUEST_HEADERS = {
     PROXY_HOST_HEADER.lower(),
@@ -50,9 +60,37 @@ def guardette_route():
         async def wrapped(*args, **kwargs):
             try:
                 return await func(*args, **kwargs)
-            except Exception as e:
-                # TODO: handle GuardetteException
-                raise e
+            except HTTPException as http_exc:
+                # Propagate HTTPExceptions (from proxied source) as-is
+                raise http_exc
+            except GuardetteException as ge:
+                # Handle known internal proxy exceptions
+                logger.exception(f"GuardetteException: {ge!s}")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": {
+                            "message": "Internal Server Error",
+                            "source": "proxy",
+                            "details": str(ge),
+                        },
+                    },
+                    headers={PROXY_ERROR_HEADER: "proxy"},
+                )
+            except Exception:
+                # Handle unexpected internal errors
+                logger.exception("Unexpected error occurred:")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": {
+                            "message": "Internal Server Error",
+                            "source": "proxy",
+                            "details": "An unexpected error occurred.",
+                        },
+                    },
+                    headers={PROXY_ERROR_HEADER: "proxy"},
+                )
         return wrapped
     return wrapper
 
@@ -70,7 +108,7 @@ class Guardette:
         elif conf_secret_manager == SecretManagerType.AWS_SECRET_MANAGER:
             self.secrets: SecretsManager = AwsSecretsManager(self.config)
         else:
-            raise Exception("Invalid secret manager option: " + conf_secret_manager)
+            raise ConfigurationException("Invalid secret manager option: " + conf_secret_manager)
 
     @property
     def policy(self):
@@ -92,39 +130,36 @@ class Guardette:
         }
 
     @guardette_route()
-    async def _error_route(self):
-        raise Exception("Foobar")
-
-    @guardette_route()
     async def _proxy_route(self, path: str, request: Request):
         req_client_secret = request.headers.get("authorization")
         if not req_client_secret:
-            raise HTTPException(status_code=401, detail="Forbidden")
+            raise AuthException("Missing authorization header.")
 
         client_secret = await self.secrets.get(config.CLIENT_SECRET)
 
         if not compare_digest(req_client_secret, client_secret):
-            raise HTTPException(status_code=401, detail="Forbidden")
+            raise AuthException("Invalid authorization header.")
 
         target_host = request.headers.get(PROXY_HOST_HEADER)
         if not target_host:
-            raise HTTPException(
-                status_code=400, detail=f"{PROXY_HOST_HEADER} header is missing"
-            )
+            raise GuardetteException(f"{PROXY_HOST_HEADER} header is missing.")
 
         match = self.matcher.match(request, target_host=target_host)
         if match is None:
-            raise HTTPException(status_code=404)
+            raise MatchNotFoundException("Match not found.")
 
         proxy_transformer = ProxyTransformer(
-            auth=self.auth, config=self.config, secrets=self.secrets, match=match
+            auth=self.auth, config=self.config, secrets=self.secrets, match=match,
         )
-        proxy_request = await proxy_transformer.transform_request(request)
+        try:
+            proxy_request = await proxy_transformer.transform_request(request)
+        except Exception as e:
+            raise TransformationException(f"Error transforming request: {e!s}") from e
 
         async with httpx.AsyncClient() as client:
             if request.method == "GET":
                 response = await client.get(
-                    proxy_request.url, headers=proxy_request.headers
+                    proxy_request.url, headers=proxy_request.headers,
                 )
             elif request.method == "POST":
                 response = await client.post(
@@ -146,20 +181,24 @@ class Guardette:
                 )
             elif request.method == "DELETE":
                 response = await client.delete(
-                    proxy_request.url, headers=proxy_request.headers
+                    proxy_request.url, headers=proxy_request.headers,
                 )
             elif request.method == "HEAD":
                 response = await client.head(
-                    proxy_request.url, headers=proxy_request.headers
+                    proxy_request.url, headers=proxy_request.headers,
                 )
             elif request.method == "OPTIONS":
                 response = await client.options(
-                    proxy_request.url, headers=proxy_request.headers
+                    proxy_request.url, headers=proxy_request.headers,
                 )
             else:
-                raise Exception("Unexpected http method.")
+                raise HttpMethodNotSupportedException(f"Unexpected http method: {request.method}")
 
-        proxy_response = await proxy_transformer.transform_response(response)
+        try:
+            proxy_response = await proxy_transformer.transform_response(response)
+        except Exception as e:
+            raise TransformationException(f"Error transforming response: {e!s}") from e
+
         return JSONResponse(
             content=proxy_response.json_data,
             status_code=proxy_response.status_code,
@@ -176,7 +215,6 @@ class Guardette:
 
     def to_fastapi(self, app: FastAPI):
         app.api_route("/_guardette/meta", methods=["GET"])(self._meta_route)
-        app.api_route("/_guardette/error", methods=["GET"])(self._error_route)
         app.api_route(
             "/{path:path}",
             methods=["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH"],
@@ -208,7 +246,7 @@ class ProxyTransformer:
                 path=in_request.url.path,
                 query=in_request.url.query,
                 fragment=in_request.url.fragment,
-            )
+            ),
         )
 
         headers = MutableHeaders(
@@ -216,7 +254,7 @@ class ProxyTransformer:
                 k: v
                 for k, v in in_request.headers.items()
                 if k.lower() not in STRIP_REQUEST_HEADERS
-            }
+            },
         )
         body = await in_request.body()
         if body:
@@ -225,7 +263,7 @@ class ProxyTransformer:
             json_data = None
 
         self._proxy_request = ProxyRequest(
-            url=url, headers=headers, json_data=json_data
+            url=url, headers=headers, json_data=json_data,
         )
         if self.target.auth:
             await self.auth(
@@ -240,7 +278,7 @@ class ProxyTransformer:
             secrets=self.secrets,
             request=self._proxy_request,
             response=ProxyResponse(
-                status_code=0, headers=MutableHeaders(), json_data=None
+                status_code=0, headers=MutableHeaders(), json_data=None,
             ),
         )
         for action in self.rule.actions:
@@ -251,7 +289,7 @@ class ProxyTransformer:
         if self._proxy_request is None:
             raise Exception(
                 "Cannot call transform_response() without first "
-                "calling transform_request()"
+                "calling transform_request()",
             )
         status_code = in_response.status_code
         headers = MutableHeaders(
@@ -259,7 +297,7 @@ class ProxyTransformer:
                 k: v
                 for k, v in in_response.headers.items()
                 if k.lower() not in STRIP_RESPONSE_HEADERS
-            }
+            },
         )
         json_data = in_response.json()
         ctx = ActionContext(
@@ -267,7 +305,7 @@ class ProxyTransformer:
             secrets=self.secrets,
             request=self._proxy_request,
             response=ProxyResponse(
-                status_code=status_code, headers=headers, json_data=json_data
+                status_code=status_code, headers=headers, json_data=json_data,
             ),
         )
         for action in self.rule.actions:
