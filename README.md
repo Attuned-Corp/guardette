@@ -3,7 +3,7 @@ A redacting proxy built on FastAPI/Starlette.
 
 ## Quick Start
 ```
-mv scripts/policygen.config.example.json policygen.config.example.json
+mv scripts/policygen.config.example.json policygen.config.json
 ython scripts/policygen/policygen.py
 SECRET_MANAGER=default CLIENT_SECRET=secret python -m uvicorn main:app --reload
 ```
