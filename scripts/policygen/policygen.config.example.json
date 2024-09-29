@@ -1,0 +1,8 @@
+{
+  "sources": [
+    {
+      "kind": "test_hacker_news",
+      "config": {}
+    }
+  ]
+}

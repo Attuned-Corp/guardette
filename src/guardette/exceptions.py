@@ -21,6 +21,8 @@ class AuthHandlerAuthException(GuardetteException):
 class HttpMethodNotSupportedException(GuardetteException):
     pass
 
+class ProxyClientTimeoutException(GuardetteException):
+    pass
 
 class TransformationException(GuardetteException):
     pass

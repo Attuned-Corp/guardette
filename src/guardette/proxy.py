@@ -1,10 +1,14 @@
 import functools
 import logging
+import time
+import uuid
+import json
 from secrets import compare_digest
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from guardette.logging import setup_logging
 from starlette.datastructures import URL, MutableHeaders
 
 from guardette import config
@@ -16,6 +20,7 @@ from guardette.exceptions import (
     ConfigurationException,
     GuardetteException,
     HttpMethodNotSupportedException,
+    ProxyClientTimeoutException,
     MatchNotFoundException,
     TransformationException,
 )
@@ -29,10 +34,9 @@ from guardette.secrets import (
 )
 from guardette.utils import copy_signature
 from guardette.version import VERSION
+from guardette.constants import PROXY_HOST_HEADER, PROXY_ERROR_HEADER, PROXY_CLIENT_TIMEOUT_SECS
 
-PROXY_HOST_HEADER = "X-Guardette-Host"
 
-PROXY_ERROR_HEADER = "X-Guardette-Error"
 
 STRIP_REQUEST_HEADERS = {
     PROXY_HOST_HEADER.lower(),
@@ -51,21 +55,55 @@ STRIP_RESPONSE_HEADERS = {
 }
 
 
-logger = logging.getLogger(__name__)
+setup_logging()
+
+logger = logging.getLogger("guardette")
 
 
 def guardette_route():
     def wrapper(func):
         @functools.wraps(func)
         async def wrapped(*args, **kwargs):
+            request: Request = kwargs.get('request') or args[0]
+            correlation_id = str(uuid.uuid4())
+            request.state.correlation_id = correlation_id
+            logger.info(
+                "Incoming guardette request",
+                extra={
+                    "correlation_id": correlation_id,
+                    "method": request.method,
+                    "url": str(request.url),
+                    "client_host": request.client.host if request.client else "unknown",
+                    "proxy_host": request.headers.get(PROXY_HOST_HEADER, "unknown"),
+                }
+            )
+            start_time = time.time()
+
             try:
-                return await func(*args, **kwargs)
-            except HTTPException as http_exc:
-                # Propagate HTTPExceptions (from proxied source) as-is
-                raise http_exc
+                response = await func(*args, **kwargs)
+                elapsed_time = time.time() - start_time
+                logger.info(
+                    "Guardette request processed successfully",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "status_code": response.status_code,
+                        "content_type": response.headers.get("Content-Type", "unknown"),
+                        "elapsed_time": f"{elapsed_time:.3f}s",
+                    }
+                )
+                return response
             except GuardetteException as ge:
                 # Handle known internal proxy exceptions
-                logger.exception(f"GuardetteException: {ge!s}")
+                elapsed_time = time.time() - start_time
+                logger.error(
+                    "GuardetteException encountered",
+                    exc_info=True,
+                    extra={
+                        "correlation_id": correlation_id,
+                        "exception": str(ge),
+                        "elapsed_time": f"{elapsed_time:.3f}s",
+                    }
+                )
                 return JSONResponse(
                     status_code=500,
                     content={
@@ -73,13 +111,23 @@ def guardette_route():
                             "message": "Internal Server Error",
                             "source": "proxy",
                             "details": str(ge),
+                            "correlation_id": correlation_id,
                         },
                     },
                     headers={PROXY_ERROR_HEADER: "proxy"},
                 )
-            except Exception:
+            except Exception as exc:
                 # Handle unexpected internal errors
-                logger.exception("Unexpected error occurred:")
+                elapsed_time = time.time() - start_time
+                logger.error(
+                    "Unexpected error occurred",
+                    exc_info=True,
+                    extra={
+                        "correlation_id": correlation_id,
+                        "exception": str(exc),
+                        "elapsed_time": f"{elapsed_time:.3f}s",
+                    }
+                )
                 return JSONResponse(
                     status_code=500,
                     content={
@@ -87,6 +135,7 @@ def guardette_route():
                             "message": "Internal Server Error",
                             "source": "proxy",
                             "details": "An unexpected error occurred.",
+                            "correlation_id": correlation_id,
                         },
                     },
                     headers={PROXY_ERROR_HEADER: "proxy"},
@@ -101,6 +150,8 @@ class Guardette:
         self.auth = auth_registry
         self.policy = load_policy(policy_path)
         self.config = config.ConfigManager()
+
+        logger.info("Guardette policy loaded", extra={"policy": json.dumps(self.policy.model_dump())})
 
         conf_secret_manager = self.config.get(config.SECRET_MANAGER) or "default"
         if conf_secret_manager == SecretManagerType.DEFAULT:
@@ -124,18 +175,22 @@ class Guardette:
         return self._matcher
 
     @guardette_route()
-    async def _meta_route(self):
-        return {
-            "version": VERSION,
-        }
+    async def _meta_route(self, request: Request):
+        return JSONResponse(
+            content={
+                "version": VERSION,
+                "policy": self.policy.model_dump(),
+            },
+            status_code=200,
+        )
 
     @guardette_route()
-    async def _proxy_route(self, path: str, request: Request):
+    async def _proxy_route(self, request: Request):
         req_client_secret = request.headers.get("authorization")
         if not req_client_secret:
             raise AuthException("Missing authorization header.")
 
-        client_secret = await self.secrets.get(config.CLIENT_SECRET)
+        client_secret = await self.secrets.get(config.CLIENT_SECRET, correlation_id=request.state.correlation_id)
 
         if not compare_digest(req_client_secret, client_secret):
             raise AuthException("Invalid authorization header.")
@@ -156,46 +211,49 @@ class Guardette:
         except Exception as e:
             raise TransformationException(f"Error transforming request: {e!s}") from e
 
-        async with httpx.AsyncClient() as client:
-            if request.method == "GET":
-                response = await client.get(
-                    proxy_request.url, headers=proxy_request.headers,
-                )
-            elif request.method == "POST":
-                response = await client.post(
-                    proxy_request.url,
-                    headers=proxy_request.headers,
-                    data=proxy_request.json_data,
-                )
-            elif request.method == "PUT":
-                response = await client.put(
-                    proxy_request.url,
-                    headers=proxy_request.headers,
-                    data=proxy_request.json_data,
-                )
-            elif request.method == "PATCH":
-                response = await client.patch(
-                    proxy_request.url,
-                    headers=proxy_request.headers,
-                    data=proxy_request.json_data,
-                )
-            elif request.method == "DELETE":
-                response = await client.delete(
-                    proxy_request.url, headers=proxy_request.headers,
-                )
-            elif request.method == "HEAD":
-                response = await client.head(
-                    proxy_request.url, headers=proxy_request.headers,
-                )
-            elif request.method == "OPTIONS":
-                response = await client.options(
-                    proxy_request.url, headers=proxy_request.headers,
-                )
-            else:
-                raise HttpMethodNotSupportedException(f"Unexpected http method: {request.method}")
+        async with httpx.AsyncClient(timeout=PROXY_CLIENT_TIMEOUT_SECS) as client:
+            try:
+                if request.method == "GET":
+                    response = await client.get(
+                        proxy_request.url, headers=proxy_request.headers,
+                    )
+                elif request.method == "POST":
+                    response = await client.post(
+                        proxy_request.url,
+                        headers=proxy_request.headers,
+                        data=proxy_request.json_data,
+                    )
+                elif request.method == "PUT":
+                    response = await client.put(
+                        proxy_request.url,
+                        headers=proxy_request.headers,
+                        data=proxy_request.json_data,
+                    )
+                elif request.method == "PATCH":
+                    response = await client.patch(
+                        proxy_request.url,
+                        headers=proxy_request.headers,
+                        data=proxy_request.json_data,
+                    )
+                elif request.method == "DELETE":
+                    response = await client.delete(
+                        proxy_request.url, headers=proxy_request.headers,
+                    )
+                elif request.method == "HEAD":
+                    response = await client.head(
+                        proxy_request.url, headers=proxy_request.headers,
+                    )
+                elif request.method == "OPTIONS":
+                    response = await client.options(
+                        proxy_request.url, headers=proxy_request.headers,
+                    )
+                else:
+                    raise HttpMethodNotSupportedException(f"Unexpected http method: {request.method}")
+            except httpx.TimeoutException as e:
+                raise ProxyClientTimeoutException(f"Request timed out: {str(e)}") from e
 
         try:
-            proxy_response = await proxy_transformer.transform_response(response)
+            proxy_response = await proxy_transformer.transform_response(request, response)
         except Exception as e:
             raise TransformationException(f"Error transforming response: {e!s}") from e
 
@@ -239,6 +297,7 @@ class ProxyTransformer:
         self._proxy_request: ProxyRequest | None = None
 
     async def transform_request(self, in_request: Request) -> ProxyRequest:
+        correlation_id = in_request.state.correlation_id
         url = str(
             URL(
                 scheme="https",
@@ -266,6 +325,8 @@ class ProxyTransformer:
             url=url, headers=headers, json_data=json_data,
         )
         if self.target.auth:
+            logger.debug(f"Using target auth handler: {self.target.auth}",
+                         extra={"correlation_id": correlation_id})
             await self.auth(
                 self.target.auth,
                 request=self._proxy_request,
@@ -281,11 +342,20 @@ class ProxyTransformer:
                 status_code=0, headers=MutableHeaders(), json_data=None,
             ),
         )
+        logger.debug(
+            "Transforming request",
+            extra={
+                "correlation_id": correlation_id,
+                "actions": [action.__class__.__name__ for action in self.rule.actions]
+            }
+        )
         for action in self.rule.actions:
             await action.request(ctx)
         return self._proxy_request
 
-    async def transform_response(self, in_response: httpx.Response) -> ProxyResponse:
+    async def transform_response(self, in_request: Request, in_response: httpx.Response) -> ProxyResponse:
+        correlation_id = in_request.state.correlation_id
+
         if self._proxy_request is None:
             raise Exception(
                 "Cannot call transform_response() without first "
@@ -307,6 +377,13 @@ class ProxyTransformer:
             response=ProxyResponse(
                 status_code=status_code, headers=headers, json_data=json_data,
             ),
+        )
+        logger.debug(
+            "Transforming response",
+            extra={
+                "correlation_id": correlation_id,
+                "actions": [action.__class__.__name__ for action in self.rule.actions]
+            }
         )
         for action in self.rule.actions:
             await action.response(ctx)

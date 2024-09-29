@@ -1,3 +1,4 @@
+import httpx
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -6,7 +7,7 @@ from fastapi.testclient import TestClient
 from guardette import Guardette
 from guardette.datastructures import ProxyRequest, ProxyResponse
 from guardette.exceptions import GuardetteException
-from guardette.proxy import PROXY_ERROR_HEADER, PROXY_HOST_HEADER
+from guardette.constants import PROXY_HOST_HEADER, PROXY_ERROR_HEADER
 
 app = FastAPI()
 
@@ -20,7 +21,7 @@ secrets = {
 }
 
 
-async def get_secret(key):
+async def get_secret(key, *args, **kwargs):
     return secrets.get(key)
 
 
@@ -72,7 +73,7 @@ def mock_transform_404_response(*args, **kwargs):
 @patch("guardette.proxy.ProxyTransformer.transform_request", return_value=mock_transform_404_request())
 @patch("guardette.proxy.ProxyTransformer.transform_response", return_value=mock_transform_404_response())
 @patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
-def test_proxied_error(mock_transform_response, mock_transform_request, mock_match, mock_get):
+def test_proxied_error(mock_match, mock_transform_request, mock_transform_response, mock_get):
     response = client.get("/some/nonexistent/path",
                           headers={
                               PROXY_HOST_HEADER: "httpbin.org",
@@ -81,3 +82,31 @@ def test_proxied_error(mock_transform_response, mock_transform_request, mock_mat
     assert response.status_code == 404
     assert response.json()["detail"] == "Not Found"
     assert PROXY_ERROR_HEADER not in response.headers
+
+
+@patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Request timed out"))
+@patch("guardette.matching.Matcher.match", return_value=mock_http_bin_match())
+@patch("guardette.proxy.ProxyTransformer.transform_request", return_value=mock_transform_404_request())
+@patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
+def test_proxy_timeout(mock_get, mock_match, mock_transform_request, mock_secrets_get):
+    response = client.get(
+        "/some/path",
+        headers={
+            PROXY_HOST_HEADER: "httpbin.org",
+            "Authorization": secrets["CLIENT_SECRET"],
+        }
+    )
+    assert response.status_code == 500, response.text
+    assert response.json()["error"]["source"] == "proxy"
+    assert "Request timed out" in response.json()["error"]["details"]
+    assert response.headers.get(PROXY_ERROR_HEADER) == "proxy"
+
+@patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
+def test_meta_route(mock_get):
+    response = client.get("/_guardette/meta")
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    # Verify that the response contains the expected keys
+    assert "version" in data, "Response should contain 'version'"
+    assert "policy" in data, "Response should contain 'policy'"
