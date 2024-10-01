@@ -2,7 +2,6 @@ import hashlib
 import typing
 import base64
 from guardette.actions import action_registry, Action, ActionContext
-from guardette.config import PSEUDONYMIZE_SALT
 
 
 @action_registry.register("pseudonymize_email")
@@ -10,7 +9,7 @@ class PseudonymizeEmail(Action):
     json_paths: typing.List[str]
 
     async def response(self, ctx: ActionContext):
-        salt = await ctx.secrets.get(PSEUDONYMIZE_SALT)
+        salt = await ctx.secrets.get('PSEUDONYMIZE_SALT')
 
         def updater(email, data, k):
             if not isinstance(email, str):
@@ -21,7 +20,7 @@ class PseudonymizeEmail(Action):
             except ValueError:
                 return
 
-            if domain in ctx.config.pseudonymize_email_domains_allowlist:
+            if domain in ctx.config.PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST:
                 return
 
             username_hash = (

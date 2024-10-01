@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from guardette.logging import setup_logging
 from starlette.datastructures import URL, MutableHeaders
 
-from guardette import config
+from guardette.config import ConfigManager
 from guardette.actions import ActionContext, action_registry
 from guardette.auth import AuthHandlerRegistry, auth_registry
 from guardette.datastructures import ProxyRequest, ProxyResponse
@@ -34,7 +34,7 @@ from guardette.secrets import (
 )
 from guardette.utils import copy_signature
 from guardette.version import VERSION
-from guardette.constants import PROXY_HOST_HEADER, PROXY_ERROR_HEADER, PROXY_CLIENT_TIMEOUT_SECS
+from guardette.constants import PROXY_HOST_HEADER, PROXY_ERROR_HEADER
 
 
 
@@ -149,11 +149,11 @@ class Guardette:
         self.actions = action_registry
         self.auth = auth_registry
         self.policy = load_policy(policy_path)
-        self.config = config.ConfigManager()
+        self.config = ConfigManager()
 
         logger.info("Guardette policy loaded", extra={"policy": json.dumps(self.policy.model_dump())})
 
-        conf_secret_manager = self.config.get(config.SECRET_MANAGER) or "default"
+        conf_secret_manager = self.config.SECRET_MANAGER
         if conf_secret_manager == SecretManagerType.DEFAULT:
             self.secrets: SecretsManager = ConfigSecretsManager(self.config)
         elif conf_secret_manager == SecretManagerType.AWS_SECRET_MANAGER:
@@ -190,7 +190,7 @@ class Guardette:
         if not req_client_secret:
             raise AuthException("Missing authorization header.")
 
-        client_secret = await self.secrets.get(config.CLIENT_SECRET, correlation_id=request.state.correlation_id)
+        client_secret = await self.secrets.get('CLIENT_SECRET', correlation_id=request.state.correlation_id)
 
         if not compare_digest(req_client_secret, client_secret):
             raise AuthException("Invalid authorization header.")
@@ -211,7 +211,8 @@ class Guardette:
         except Exception as e:
             raise TransformationException(f"Error transforming request: {e!s}") from e
 
-        async with httpx.AsyncClient(timeout=PROXY_CLIENT_TIMEOUT_SECS) as client:
+        client_timeout: int = self.config.PROXY_CLIENT_TIMEOUT_SECS
+        async with httpx.AsyncClient(timeout=client_timeout) as client:
             try:
                 if request.method == "GET":
                     response = await client.get(
@@ -284,7 +285,7 @@ class ProxyTransformer:
         self,
         *,
         auth: AuthHandlerRegistry,
-        config: config.ConfigManager,
+        config: ConfigManager,
         secrets: SecretsManager,
         match: SourceMatcherResult,
     ):

@@ -16,13 +16,10 @@ guardette.to_fastapi(app)
 
 client = TestClient(app)
 
-secrets = {
-    "CLIENT_SECRET": "test",
-}
-
+test_client_secret = "test"
 
 async def get_secret(key, *args, **kwargs):
-    return secrets.get(key)
+    return "test"
 
 
 @patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
@@ -30,10 +27,10 @@ def test_yc(mock_get):
     response = client.get("/v0/item/8863.json",
                           headers={
                               PROXY_HOST_HEADER: "hacker-news.firebaseio.com",
-                              "Authorization": secrets["CLIENT_SECRET"],
+                              "Authorization": test_client_secret,
                             })
     assert response.status_code == 200, response.text
-    assert response.json()["title"] == guardette.config.redact_token
+    assert response.json()["title"] == guardette.config.REDACT_TOKEN
 
 
 @patch("guardette.secrets.ConfigSecretsManager.get", side_effect=GuardetteException("Secret retrieval failed"))
@@ -41,7 +38,7 @@ def test_internal_error(mock_get):
     response = client.get("/some/path",
                           headers={
                               PROXY_HOST_HEADER: "example.com",
-                              "Authorization": secrets["CLIENT_SECRET"],
+                              "Authorization": test_client_secret,
                           })
     assert response.status_code == 500
     assert response.json()["error"]["source"] == "proxy"
@@ -77,7 +74,7 @@ def test_proxied_error(mock_match, mock_transform_request, mock_transform_respon
     response = client.get("/some/nonexistent/path",
                           headers={
                               PROXY_HOST_HEADER: "httpbin.org",
-                              "Authorization": secrets["CLIENT_SECRET"],
+                              "Authorization": test_client_secret,
                           })
     assert response.status_code == 404
     assert response.json()["detail"] == "Not Found"
@@ -93,7 +90,7 @@ def test_proxy_timeout(mock_get, mock_match, mock_transform_request, mock_secret
         "/some/path",
         headers={
             PROXY_HOST_HEADER: "httpbin.org",
-            "Authorization": secrets["CLIENT_SECRET"],
+            "Authorization": test_client_secret,
         }
     )
     assert response.status_code == 500, response.text
