@@ -1,18 +1,19 @@
 import os
 
-PSEUDONYMIZE_SALT = "PSEUDONYMIZE_SALT"
-CLIENT_SECRET = "CLIENT_SECRET"
-SECRET_MANAGER = "SECRET_MANAGER"
-PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST = "PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST"
-
-
 class ConfigManager:
-    redact_token = "[REDACTED]"
+    REDACT_TOKEN = "[REDACTED]"
+
+    PSEUDONYMIZE_SALT: str = os.environ.get("PSEUDONYMIZE_SALT", "")
+
+    CLIENT_SECRET: str = os.environ.get("CLIENT_SECRET", "")
+    SECRET_MANAGER: str = os.environ.get("SECRET_MANAGER", "default")
+    PROXY_CLIENT_TIMEOUT_SECS: int = os.environ.get("PROXY_CLIENT_TIMEOUT_SECS", 60)
+    SECRET_MANAGER_CACHE_TTL_SECS: int = os.environ.get("SECRET_MANAGER_CACHE_TTL_SECS", 120)
+    PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST: tuple[str, ...] = tuple([
+        d.lower()
+        for d in os.environ.get("PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST", "").split(",")
+        if d
+    ])
 
     def get(self, key, default=None):
         return os.environ.get(key, default=default)
-
-    @property
-    def pseudonymize_email_domains_allowlist(self):
-        raw_allowlist = self.get(PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST) or ""
-        return [d.lower() for d in raw_allowlist.split(",") if d]

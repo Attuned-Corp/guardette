@@ -8,4 +8,4 @@ class RedactAction(Action):
 
     async def response(self, ctx: ActionContext):
         for path in self.json_paths:
-            ctx.update_json_path(ctx.response.json_data, path, ctx.config.redact_token)
+            ctx.update_json_path(ctx.response.json_data, path, ctx.config.REDACT_TOKEN)

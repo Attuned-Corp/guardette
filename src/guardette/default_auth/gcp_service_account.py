@@ -4,7 +4,7 @@ import time
 import httpx
 
 from guardette.auth import AuthContext, auth_registry
-from guardette.errors import AuthHandlerAuthException
+from guardette.exceptions import AuthHandlerAuthException
 
 
 GCP_IMPERSONATE_SUB_HEADER = "X-Guardette-Gcp-Impersonate-Sub"

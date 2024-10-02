@@ -18,3 +18,7 @@ def action_context():
     return ActionContext(
         config=config, secrets=secrets, request=request, response=response
     )
+
+@pytest.fixture
+def anyio_backend():
+    return 'asyncio'

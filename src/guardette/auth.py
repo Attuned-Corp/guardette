@@ -74,14 +74,14 @@ class AuthHandlerRegistry:
                         secrets.get(f"{prefix}_{k}".upper())
                         for k in record["secret_keys"]
                     ]
-                ),
+                ), strict=True,
             )
         )
 
         config_params = dict(
             zip(
                 record["config_keys"],
-                [config.get(f"{prefix}_{k}".upper()) for k in record["config_keys"]],
+                [config.get(f"{prefix}_{k}".upper()) for k in record["config_keys"]], strict=True,
             )
         )
 
