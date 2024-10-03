@@ -17,7 +17,8 @@ source:
       - kind: redact_regex
         json_paths:
         - $..summary
-        regex_pattern: '\b(\w{12,}|[\d-]{5,}|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)\b'
+        # redact words 11 chars or longer, words that are numbers and dashes greather than 4 chars, and emails
+        regex_pattern: '\b(\w{11,}|[\d-]{5,}|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)\b'
     - route: "GET /rest/agile/1.0/board"
     - route: "GET /rest/agile/1.0/board/{boardId}/issue"
       actions:

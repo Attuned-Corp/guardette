@@ -60,8 +60,6 @@ def jira_apis():
     print(f"Issues retrieved: {len(issues_response.get('issues', []))}")
 
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='List the first 5 users in Jira.')
     args = parser.parse_args()
