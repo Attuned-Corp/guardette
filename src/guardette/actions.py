@@ -1,7 +1,7 @@
 import typing
 from pydantic import BaseModel
 from dataclasses import dataclass
-from jsonpath_ng import parse
+from jsonpath_ng.ext import parse
 from guardette.config import ConfigManager
 
 from guardette.datastructures import ProxyRequest, ProxyResponse
