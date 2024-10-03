@@ -1,0 +1,43 @@
+source:
+  host: {{ config.jira_domain }}
+  auth: basic_auth:jira
+  rules:
+    - route: "GET /rest/api/3/search"
+      actions:
+      - kind: nullify
+        json_paths:
+        - '$.issues[*].changelog.histories[*].items[?(@.field = "summary")].fromString'
+        - '$.issues[*].changelog.histories[*].items[?(@.field = "summary")].toString'
+        - '$.issues[*].changelog.histories[*].items[?(@.field = "description")].fromString'
+        - '$.issues[*].changelog.histories[*].items[?(@.field = "description")].toString'
+        - $.issues[*].fields.worklog.worklogs[*].comment
+        - $.issues[*].renderedFields.worklog.worklogs[*].comment
+        - $.issues[*].versionedRepresentations
+        - $..description
+      - kind: redact_regex
+        json_paths:
+        - $..summary
+        # redact words 11 chars or longer, words that are numbers and dashes greather than 4 chars, and emails
+        regex_pattern: '\b(\w{11,}|[\d-]{5,}|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)\b'
+    - route: "GET /rest/agile/1.0/board"
+    - route: "GET /rest/agile/1.0/board/{boardId}/issue"
+      actions:
+      - kind: nullify
+        json_paths:
+        - $.issues[*].changelog
+        - $.issues[*].fields.worklog
+        - $.issues[*].renderedFields
+        - $.issues[*].versionedRepresentations
+        - $..summary
+        - $..description
+    - route: "GET /rest/agile/1.0/board/{boardId}/sprint"
+    - route: "GET /rest/api/3/users/search"
+    - route: "GET /rest/api/3/group/bulk"
+    - route: "GET /rest/api/3/project/search"
+    - route: "GET /rest/api/3/field"
+    - route: "GET /rest/api/3/field/{field_id}/context"
+    - route: "GET /rest/api/3/field/{field_id}/context/{context_id}/option"
+    - route: "GET /rest/api/3/status"
+    - route: "GET /rest/api/3/statuscategory"
+    - route: "GET /rest/dev-status/1.0/issue/detail"
+
