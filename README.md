@@ -12,16 +12,6 @@ Guardette is a **serverless redacting proxy layer** that sits between the REST
 
 ## **Getting Started**
 
-### **Prerequisites**
-
-Before getting started, ensure you have the following installed:
-
-- **Python 3.11** or higher
-- **AWS CLI** configured with appropriate permissions
-- **Terraform** version 1.4 or higher
-- **Docker** (for building the Lambda container image)
-- **Git** (for cloning the repository)
-
 ### Installation
 
 1. **Clone the Repository**
@@ -75,41 +65,8 @@ SECRET_MANAGER=default CLIENT_SECRET=secret python -m uvicorn main:app --reload
 curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com" "http://localhost:8000/v0/item/8863.json?print=pretty"
 ```
 
-### Deploying Guardette on AWS
-
-Guardette can be deployed as an AWS Lambda function using Terraform. Follow these steps to deploy:
-
-1. **Configure Environment Variables**
-
-Ensure the following environment variables are set:
-
-- AWS_REGION: Your AWS region (e.g., us-west-2)
-- TAG: (Optional) Docker image tag. Defaults to latest if not specified.
-
-1. **Build and Push the Docker Image**
-
-Setup AWS ECR
-
-```python
-make ecr
-```
-
-Run the following command to build the Docker image and push it to AWS ECR
-
-```python
-make deploy TAG=your-desired-tag
-```
-
-This command performs the following actions:
-
-- **Login to AWS ECR**: Authenticates Docker with AWS Elastic Container Registry.
-- **Build the Container**: Builds the Docker image specified in the Dockerfile.
-- **Push the Image**: Pushes the Docker image to your ECR repository.
-- **Deploy with Terraform**: Uses Terraform to deploy the Lambda function along with the necessary API Gateway configuration.
-
-1. **Verify Deployment**
-
-After deployment, Terraform will output the API endpoint. You can test the proxy by sending requests to this endpoint.
+## **Deploying to AWS**
+Read [terraform/aws/README.md](terraform/aws/README.md)
 
 ## **Authentication Configuration**
 
@@ -137,7 +94,7 @@ aws secretsmanager create-secret --name AUTH_BASIC_AUTH_JIRA_USERNAME --secret-s
 aws secretsmanager create-secret --name AUTH_BASIC_AUTH_JIRA_PASSWORD --secret-string "your_jira_password"
 ```
 
-1. **Update Terraform Variables**
+2. **Example: Update Terraform Variables**
 
 In your Terraform configuration (terraform/aws/variables.tf), ensure the following variables are set to reference your AWS Secrets Manager secrets:
 
@@ -158,12 +115,6 @@ variable "environment_vars" {
   # ... (validation and other settings)
 }
 
-```
-
-1. **Deploy**
-
-```
-make deploy TAG=your-desired-tag
 ```
 
 ### Configuration Details

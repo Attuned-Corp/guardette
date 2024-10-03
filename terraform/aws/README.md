@@ -1,34 +1,35 @@
-# AWS Module
+### Deploying Guardette on AWS
 
-## Example
-```terraform
-locals {
-  client_secret     = "arn:aws:secretsmanager:us-west-2:test:secret:client_secret"
-  pseudonymize_salt = "arn:aws:secretsmanager:us-west-2:test:secret:salt_secret"
-}
+Guardette can be deployed as an AWS Lambda function using Terraform. Follow these steps to deploy:
 
-data "aws_iam_policy_document" "lambda_secrets_policy" {
-  statement {
-    sid       = "SecretsAccess"
-    effect    = "Allow"
-    resources = [
-      local.client_secret,
-      local.pseudonymize_salt
-    ]
-    actions   = ["secretsmanager:GetSecretValue"]
-  }
-}
+1. **Configure Environment Variables**
 
-module "guardette_redacting_proxy" {
-  source = "git@github.com:Attuned-Corp/guardette.git//terraform/aws"
+Ensure the following environment variables are set:
 
-  image_uri                = "***.dkr.ecr.us-west-2.amazonaws.com/container:tag"
-  lambda_additional_policy = data.aws_iam_policy_document.lambda_secrets_policy.json
-  environment_vars         = {
-    SECRET_MANAGER                       = "aws_secret_manager"
-    CLIENT_SECRET                        = local.client_secret
-    PSEUDONYMIZE_SALT                    = local.pseudonymize_salt
-    PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST = "example.com"
-  }
-}
+- AWS_REGION: Your AWS region (e.g., us-west-2)
+- TAG: (Optional) Docker image tag. Defaults to latest if not specified.
+
+2. **Build and Push the Docker Image**
+
+Setup AWS ECR
+
+```python
+make ecr
 ```
+
+Run the following command to build the Docker image and push it to AWS ECR
+
+```python
+make deploy TAG=your-desired-tag
+```
+
+This command performs the following actions:
+
+- **Login to AWS ECR**: Authenticates Docker with AWS Elastic Container Registry.
+- **Build the Container**: Builds the Docker image specified in the Dockerfile.
+- **Push the Image**: Pushes the Docker image to your ECR repository.
+- **Deploy with Terraform**: Uses Terraform to deploy the Lambda function along with the necessary API Gateway configuration.
+
+3. **Verify Deployment**
+
+After deployment, Terraform will output the API endpoint. You can test the proxy by sending requests to this endpoint.
