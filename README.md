@@ -21,7 +21,7 @@ git clone git@github.com:Attuned-Corp/guardette.git
 cd guardette
 ```
 
-1. **Install Dependencies**
+2. **Install Dependencies**
 
 ```
 python -m venv .venv
@@ -29,7 +29,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-1. **Generate a policy.yml**
+3. **Generate a policy.yml**
 
 Span will send you a config file to generate your policy.yml with, but it might look something like this:
 
@@ -55,7 +55,7 @@ python scripts/policygen/policygen.py --config=policygen.config.json
 
 Upon successful execution, a `.guardette/policy.yml` file will be created. This YAML file contains the rules that the proxy will use to enforce data access policies.
 
-1. **Run locally**
+4. **Run locally**
 
 ```python
 SECRET_MANAGER=default CLIENT_SECRET=secret python -m uvicorn main:app --reload
