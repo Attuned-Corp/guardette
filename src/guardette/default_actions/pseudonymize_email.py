@@ -13,15 +13,15 @@ class PseudonymizeEmail(Action):
 
         def updater(email, data, k):
             if not isinstance(email, str):
-                return
+                return email
 
             try:
                 username, domain = email.lower().split("@")
             except ValueError:
-                return
+                return email
 
             if domain in ctx.config.PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST:
-                return
+                return email
 
             username_hash = (
                 base64.b32encode(hashlib.sha256((username + salt).encode()).digest())
@@ -33,8 +33,7 @@ class PseudonymizeEmail(Action):
                 .decode()
                 .rstrip("=")
             )
-            pseudonymized_email = f"u-{username_hash}@d-{domain_hash}.invalid".lower()
-            data.update({k: pseudonymized_email})
+            return f"u-{username_hash}@d-{domain_hash}.invalid".lower()
 
         for path in self.json_paths:
             ctx.update_json_path(ctx.response.json_data, path, updater)
