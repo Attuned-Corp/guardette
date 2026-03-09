@@ -110,7 +110,6 @@ def guardette_route():
                         "error": {
                             "message": "Internal Server Error",
                             "source": "proxy",
-                            "details": str(ge),
                             "correlation_id": correlation_id,
                         },
                     },
@@ -174,8 +173,20 @@ class Guardette:
     def matcher(self):
         return self._matcher
 
+    async def _validate_client_secret(self, request: Request):
+        req_client_secret = request.headers.get("authorization")
+        if not req_client_secret:
+            raise AuthException("Missing authorization header.")
+
+        client_secret = await self.secrets.get('CLIENT_SECRET', correlation_id=request.state.correlation_id)
+
+        if not compare_digest(req_client_secret, client_secret):
+            raise AuthException("Invalid authorization header.")
+
     @guardette_route()
     async def _meta_route(self, request: Request):
+        await self._validate_client_secret(request)
+
         return JSONResponse(
             content={
                 "version": VERSION,
@@ -186,14 +197,7 @@ class Guardette:
 
     @guardette_route()
     async def _proxy_route(self, request: Request):
-        req_client_secret = request.headers.get("authorization")
-        if not req_client_secret:
-            raise AuthException("Missing authorization header.")
-
-        client_secret = await self.secrets.get('CLIENT_SECRET', correlation_id=request.state.correlation_id)
-
-        if not compare_digest(req_client_secret, client_secret):
-            raise AuthException("Invalid authorization header.")
+        await self._validate_client_secret(request)
 
         target_host = request.headers.get(PROXY_HOST_HEADER)
         if not target_host:
