@@ -115,3 +115,28 @@ def test_meta_route_requires_auth(mock_get):
     response = client.get("/_guardette/meta")
     assert response.status_code == 500
     assert response.headers.get(PROXY_ERROR_HEADER) == "proxy"
+
+
+def mock_html_response():
+    return httpx.Response(
+        status_code=200,
+        headers={"content-type": "text/html"},
+        content=b"<html><body>Error</body></html>",
+    )
+
+
+@patch("httpx.AsyncClient.get", return_value=mock_html_response())
+@patch("guardette.matching.Matcher.match", return_value=mock_http_bin_match())
+@patch("guardette.proxy.ProxyTransformer.transform_request", return_value=mock_transform_404_request())
+@patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
+def test_non_json_upstream_response_is_blocked(mock_get, mock_match, mock_transform_request, mock_secrets_get):
+    response = client.get(
+        "/some/path",
+        headers={
+            PROXY_HOST_HEADER: "httpbin.org",
+            "Authorization": test_client_secret,
+        }
+    )
+    assert response.status_code == 500
+    assert response.json()["error"]["source"] == "proxy"
+    assert response.headers.get(PROXY_ERROR_HEADER) == "proxy"
