@@ -95,15 +95,23 @@ def test_proxy_timeout(mock_get, mock_match, mock_transform_request, mock_secret
     )
     assert response.status_code == 500, response.text
     assert response.json()["error"]["source"] == "proxy"
-    assert "Request timed out" in response.json()["error"]["details"]
+    assert "details" not in response.json()["error"]
     assert response.headers.get(PROXY_ERROR_HEADER) == "proxy"
 
 @patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
 def test_meta_route(mock_get):
-    response = client.get("/_guardette/meta")
+    response = client.get("/_guardette/meta",
+                          headers={"Authorization": test_client_secret})
     assert response.status_code == 200, response.text
     data = response.json()
 
     # Verify that the response contains the expected keys
     assert "version" in data, "Response should contain 'version'"
     assert "policy" in data, "Response should contain 'policy'"
+
+
+@patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
+def test_meta_route_requires_auth(mock_get):
+    response = client.get("/_guardette/meta")
+    assert response.status_code == 500
+    assert response.headers.get(PROXY_ERROR_HEADER) == "proxy"
