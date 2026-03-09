@@ -12,9 +12,8 @@ class RedactRegex(Action):
     async def response(self, ctx: ActionContext):
         def updater(text, data, k):
             if not isinstance(text, str):
-                return
-            redacted = re.sub(self.regex_pattern, ctx.config.REDACT_TOKEN, text, flags=re.I)
-            data.update({k: redacted})
+                return text
+            return re.sub(self.regex_pattern, ctx.config.REDACT_TOKEN, text, flags=re.I)
 
         for path in self.json_paths:
             ctx.update_json_path(ctx.response.json_data, path, updater)

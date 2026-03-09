@@ -14,7 +14,7 @@ class FilterRegex(Action):
     async def response(self, ctx: ActionContext):
         def updater(text, data, k):
             matches = re.findall(self.regex_pattern, text, re.I)
-            data.update({k: self.delimiter.join(matches)})
+            return self.delimiter.join(matches)
 
         for path in self.json_paths:
             ctx.update_json_path(ctx.response.json_data, path, updater)

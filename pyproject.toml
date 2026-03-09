@@ -1,26 +1,20 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "guardette"
 version = "0.1.0"
-authors = [
-    { name="Span" }
-]
 description = "A redacting proxy built on FastAPI/Starlette."
-requires-python = ">=3.11"
+authors = [
+    { name = "Span" }
+]
+license = "MIT"
+requires-python = ">=3.11,<4"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
     "annotated-types>=0.6.0",
-    "anyio>=3.7.1",
     "anyio[trio]>=3.7.1",
     "aiobotocore>=2.7.0",
-    "types-aiobotocore>=2.7.0",
     "types-aiobotocore[secretsmanager]>=2.7.0",
     "certifi>=2023.7.22",
     "click>=8.1.7",
@@ -30,8 +24,7 @@ dependencies = [
     "httpcore>=0.18.0",
     "httpx>=0.25.0",
     "idna>=3.4",
-    # 1.6.1 .update() is broken
-    "jsonpath-ng>=1.6.0,!=1.6.1",
+    "jsonpath-ng>=1.7.0",
     "ply>=3.11",
     "pydantic>=2.4.2",
     "pydantic_core>=2.10.1",
@@ -41,23 +34,31 @@ dependencies = [
     "uvicorn>=0.23.2",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
-    "PyJWT>=2.8.0",
-    "pyjwt[crypto]>=2.8.0",
+    "PyJWT[crypto]>=2.8.0",
     "mangum>=0.17.0",
 ]
-
-[project.optional-dependencies]
-dev = ["build", "jinja2>=3.1.2", "pytest", "ruff", "requests"]
 
 [project.urls]
 Homepage = "https://github.com/attuned-corp/guardette"
 Issues = "https://github.com/attuned-corp/guardette/issues"
+
+[tool.poetry]
+packages = [{include = "guardette", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+build = "*"
+jinja2 = ">=3.1.2"
+pytest = "*"
+ruff = "*"
+requests = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120
-select = ["E", "F", "W", "B",]
-
-
+select = ["E", "F", "W", "B"]
