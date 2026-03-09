@@ -374,7 +374,12 @@ class ProxyTransformer:
                 if k.lower() not in STRIP_RESPONSE_HEADERS
             },
         )
-        json_data = in_response.json()
+        try:
+            json_data = in_response.json()
+        except Exception as e:
+            raise TransformationException(
+                "Upstream returned non-JSON response"
+            ) from e
         ctx = ActionContext(
             config=self.config,
             secrets=self.secrets,
