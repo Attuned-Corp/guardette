@@ -1,8 +1,8 @@
 import functools
+import json
 import logging
 import time
 import uuid
-import json
 from secrets import compare_digest
 
 import httpx
@@ -60,6 +60,27 @@ setup_logging()
 logger = logging.getLogger("guardette")
 
 
+_EXCEPTION_RESPONSES: dict[type[GuardetteException], tuple[int, str, str]] = {
+    # exception class -> (status_code, response_message, log_message)
+    AuthException: (401, "Unauthorized", "Authentication failed"),
+    MatchNotFoundException: (404, "Not Found", "No matching route found"),
+}
+
+
+def _make_error_response(correlation_id: str, status_code: int, message: str, **extra_content) -> JSONResponse:
+    content = {
+        "message": message,
+        "source": "proxy",
+        "correlation_id": correlation_id,
+        **extra_content,
+    }
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": content},
+        headers={PROXY_ERROR_HEADER: "proxy"},
+    )
+
+
 def guardette_route():
     def wrapper(func):
         @functools.wraps(func)
@@ -93,30 +114,22 @@ def guardette_route():
                 )
                 return response
             except GuardetteException as ge:
-                # Handle known internal proxy exceptions
                 elapsed_time = time.time() - start_time
-                logger.error(
-                    "GuardetteException encountered",
-                    exc_info=True,
+                status_code, message, log_message = _EXCEPTION_RESPONSES.get(
+                    type(ge), (500, "Internal Server Error", "GuardetteException encountered")
+                )
+                log_func = logger.warning if status_code < 500 else logger.error
+                log_func(
+                    log_message,
+                    exc_info=status_code >= 500,
                     extra={
                         "correlation_id": correlation_id,
                         "exception": str(ge),
                         "elapsed_time": f"{elapsed_time:.3f}s",
                     }
                 )
-                return JSONResponse(
-                    status_code=500,
-                    content={
-                        "error": {
-                            "message": "Internal Server Error",
-                            "source": "proxy",
-                            "correlation_id": correlation_id,
-                        },
-                    },
-                    headers={PROXY_ERROR_HEADER: "proxy"},
-                )
+                return _make_error_response(correlation_id, status_code, message)
             except Exception as exc:
-                # Handle unexpected internal errors
                 elapsed_time = time.time() - start_time
                 logger.error(
                     "Unexpected error occurred",
@@ -127,17 +140,9 @@ def guardette_route():
                         "elapsed_time": f"{elapsed_time:.3f}s",
                     }
                 )
-                return JSONResponse(
-                    status_code=500,
-                    content={
-                        "error": {
-                            "message": "Internal Server Error",
-                            "source": "proxy",
-                            "details": "An unexpected error occurred.",
-                            "correlation_id": correlation_id,
-                        },
-                    },
-                    headers={PROXY_ERROR_HEADER: "proxy"},
+                return _make_error_response(
+                    correlation_id, 500, "Internal Server Error",
+                    details="An unexpected error occurred.",
                 )
         return wrapped
     return wrapper

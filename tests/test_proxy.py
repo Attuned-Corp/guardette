@@ -113,7 +113,8 @@ def test_meta_route(mock_get):
 @patch("guardette.secrets.ConfigSecretsManager.get", side_effect=get_secret)
 def test_meta_route_requires_auth(mock_get):
     response = client.get("/_guardette/meta")
-    assert response.status_code == 500
+    assert response.status_code == 401
+    assert response.json()["error"]["message"] == "Unauthorized"
     assert response.headers.get(PROXY_ERROR_HEADER) == "proxy"
 
 
