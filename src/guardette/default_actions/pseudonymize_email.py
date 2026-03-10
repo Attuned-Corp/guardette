@@ -2,11 +2,21 @@ import hashlib
 import typing
 import base64
 from guardette.actions import action_registry, Action, ActionContext
+from guardette.config import ConfigManager
+from guardette.exceptions import ConfigurationException
 
 
 @action_registry.register("pseudonymize_email")
 class PseudonymizeEmail(Action):
     json_paths: typing.List[str]
+
+    @classmethod
+    def validate_config(cls, config: ConfigManager):
+        if not config.PSEUDONYMIZE_SALT:
+            raise ConfigurationException(
+                "PSEUDONYMIZE_SALT environment variable must be set and non-empty "
+                "when pseudonymize_email action is configured."
+            )
 
     async def response(self, ctx: ActionContext):
         salt = await ctx.secrets.get('PSEUDONYMIZE_SALT')
