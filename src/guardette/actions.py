@@ -36,6 +36,10 @@ class ActionContext:
 class Action(BaseModel):
     ...
 
+    @classmethod
+    def validate_config(cls, config: ConfigManager):
+        pass
+
     async def request(self, ctx: ActionContext):
         ...
 

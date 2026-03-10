@@ -155,6 +155,11 @@ class Guardette:
         self.policy = load_policy(policy_path)
         self.config = ConfigManager()
 
+        for source in self.policy.sources:
+            for rule in source.rules:
+                for action in rule.actions:
+                    action.validate_config(self.config)
+
         logger.info("Guardette policy loaded", extra={"policy": json.dumps(self.policy.model_dump())})
 
         conf_secret_manager = self.config.SECRET_MANAGER
