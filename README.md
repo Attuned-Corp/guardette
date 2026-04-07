@@ -14,22 +14,13 @@ Guardette is a **serverless redacting proxy layer** that sits between the REST
 
 ### Installation
 
-1. **Clone the Repository**
+1. **Install Dependencies**
 
 ```
-git clone git@github.com:Attuned-Corp/guardette.git
-cd guardette
+poetry install
 ```
 
-2. **Install Dependencies**
-
-```
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-3. **Generate a policy.yml**
+2. **Generate a policy.yml**
 
 Span will send you a config file to generate your policy.yml with, but it might look something like this:
 
@@ -49,19 +40,19 @@ Span will send you a config file to generate your policy.yml with, but it might 
 
 ```
 
-```python
-python scripts/policygen/policygen.py --config=policygen.config.json
+```
+poetry run python scripts/policygen/policygen.py --config=policygen.config.json
 ```
 
 Upon successful execution, a `.guardette/policy.yml` file will be created. This YAML file contains the rules that the proxy will use to enforce data access policies.
 
-4. **Run locally**
+3. **Run locally**
 
-```python
-SECRET_MANAGER=default CLIENT_SECRET=secret python -m uvicorn main:app --reload
+```
+SECRET_MANAGER=default CLIENT_SECRET=secret poetry run uvicorn main:app --reload
 ```
 
-```python
+```
 curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com" "http://localhost:8000/v0/item/8863.json?print=pretty"
 ```
 
@@ -176,22 +167,15 @@ These variables should contain the username and password, respectively, for Jira
 ```
 brew install pre-commit
 pre-commit install
-
-python -m venv .venv
-source .venv/bin/activate
-```
-
-### Install Dependencies
-```
-pip install -e ".[dev]"
+poetry install
 ```
 
 ### Building the Wheel
 ```
-python -m build
+poetry build
 ```
 
 ### Running Tests
 ```
-python -m pytest
+poetry run pytest
 ```
