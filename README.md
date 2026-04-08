@@ -1,10 +1,10 @@
 # Guardette Documentation
 
-Guardette is a **serverless redacting proxy layer** that sits between the REST APIs of your data sources and vendors who require access to a subset of that data. By leveraging Guardette, you can achieve **more secure and granular access control** through customizable redaction and allow-listing rules defined in a YAML file.
+Guardette is a **redacting proxy layer** that sits between the REST APIs of your data sources and vendors who require access to a subset of that data. By leveraging Guardette, you can achieve **more secure and granular access control** through customizable redaction and allow-listing rules defined in a YAML file.
 
 ## **Features**
 
-- **Serverless Architecture**: Deploy Guardette as an AWS Lambda function for scalability and cost-effectiveness.
+- **Flexible Deployment**: Run as a standalone webservice or deploy as an AWS Lambda function.
 - **Redaction and Filtering**: Define precise rules to redact sensitive information or filter specific data fields.
 - **Granular Access Control**: Allow or restrict access to specific parts of your APIs based on defined policies.
 - **Authentication Support**: Integrate with various authentication mechanisms, including AWS Secrets Manager for secure credential management.
@@ -56,8 +56,21 @@ SECRET_MANAGER=default CLIENT_SECRET=secret poetry run uvicorn main:app --reload
 curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com" "http://localhost:8000/v0/item/8863.json?print=pretty"
 ```
 
-## **Deploying to AWS**
-Read [terraform/aws/README.md](terraform/aws/README.md)
+4. **Build Docker image**
+
+```
+docker build -t guardette .
+```
+
+## **Deploying to AWS Lambda**
+
+To deploy as an AWS Lambda function, build with the Lambda Dockerfile:
+
+```
+docker build -f Dockerfile.awslambda -t guardette-lambda .
+```
+
+See [terraform/aws/README.md](terraform/aws/README.md) for full deployment instructions.
 
 ## **Authentication Configuration**
 
