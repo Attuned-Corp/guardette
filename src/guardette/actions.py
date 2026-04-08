@@ -1,4 +1,3 @@
-import typing
 from pydantic import BaseModel
 from dataclasses import dataclass
 from jsonpath_ng.ext import parse
@@ -49,13 +48,13 @@ class Action(BaseModel):
 
 class ActionRegistry:
     def __init__(self):
-        self.actions: typing.Dict[str, typing.Type[Action]] = {}
+        self.actions: dict[str, type[Action]] = {}
 
     def get_action_cls(self, kind: str):
         return self.actions[kind]
 
     def register(self, kind: str):
-        def decorator(action: typing.Type[Action]):
+        def decorator(action: type[Action]):
             if kind in self.actions:
                 raise KeyError(f"Action already exists: '{kind}'")
 

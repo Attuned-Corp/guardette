@@ -1,5 +1,4 @@
 import hashlib
-import typing
 import base64
 from guardette.actions import action_registry, Action, ActionContext
 from guardette.config import ConfigManager
@@ -8,7 +7,7 @@ from guardette.exceptions import ConfigurationException
 
 @action_registry.register("pseudonymize_email")
 class PseudonymizeEmail(Action):
-    json_paths: typing.List[str]
+    json_paths: list[str]
 
     @classmethod
     def validate_config(cls, config: ConfigManager):

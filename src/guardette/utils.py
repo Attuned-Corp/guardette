@@ -1,7 +1,8 @@
-import typing
+from collections.abc import Callable
+from typing import TypeVar
 
-F = typing.TypeVar("F", bound=typing.Callable)
+F = TypeVar("F", bound=Callable)
 
 
-def copy_signature(_: F) -> typing.Callable[..., F]:
+def copy_signature(_: F) -> Callable[..., F]:
     return lambda f: f

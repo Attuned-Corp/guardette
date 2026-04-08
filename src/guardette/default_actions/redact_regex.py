@@ -1,4 +1,3 @@
-import typing
 import re
 
 from pydantic import model_validator
@@ -10,9 +9,9 @@ from guardette.actions import action_registry, Action, ActionContext
 class RedactRegex(Action):
     model_config = {"arbitrary_types_allowed": True}
 
-    json_paths: typing.List[str]
+    json_paths: list[str]
     regex_pattern: str
-    compiled_pattern: typing.Optional[re.Pattern] = None
+    compiled_pattern: re.Pattern | None = None
 
     @model_validator(mode="after")
     def compile_regex(self):

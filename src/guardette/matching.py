@@ -1,11 +1,11 @@
-import typing
+from typing import Any, TypedDict
 from fastapi import Request
 from starlette.routing import compile_path
 from guardette.policy import Policy, Rule, Source
 
 
-class RuleMatcherResult(typing.TypedDict):
-    path_params: typing.Dict[str, str | typing.Any]
+class RuleMatcherResult(TypedDict):
+    path_params: dict[str, str | Any]
 
 
 class RuleMatcher:
@@ -28,10 +28,10 @@ class RuleMatcher:
         return {"path_params": matched_params}
 
 
-class SourceMatcherResult(typing.TypedDict):
+class SourceMatcherResult(TypedDict):
     target: Source
     rule: Rule
-    path_params: typing.Dict[str, str | typing.Any]
+    path_params: dict[str, str | Any]
 
 
 class SourceMatcher:

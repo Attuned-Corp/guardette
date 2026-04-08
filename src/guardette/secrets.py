@@ -1,6 +1,6 @@
 import logging
 import time
-import typing
+from typing import Protocol
 
 from aiobotocore.session import get_session
 
@@ -16,7 +16,7 @@ class SecretManagerType:
     AWS_SECRET_MANAGER = "aws_secret_manager"
 
 
-class SecretsManager(typing.Protocol):
+class SecretsManager(Protocol):
     async def get(self, key) -> str:
         ...
 
@@ -38,7 +38,7 @@ class AwsSecretsManager:
         self.cache_ttl_secs = self.config.SECRET_MANAGER_CACHE_TTL_SECS
 
         # key: (secret, expiry_time)
-        self._cache: typing.Dict[str, typing.Tuple[str, float]] = {}
+        self._cache: dict[str, tuple[str, float]] = {}
 
     async def get(self, key, correlation_id: str = None) -> str:
         current_time = time.time()
