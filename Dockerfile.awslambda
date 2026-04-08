@@ -1,0 +1,14 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+RUN pip install poetry
+
+COPY ./src/guardette ${LAMBDA_TASK_ROOT}/src/guardette
+COPY pyproject.toml poetry.lock ${LAMBDA_TASK_ROOT}
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+RUN poetry install --only main --extras lambda
+
+COPY main.py lambda_handler.py ${LAMBDA_TASK_ROOT}
+COPY ./.guardette/policy.yml ${LAMBDA_TASK_ROOT}/.guardette/policy.yml
+
+CMD [ "lambda_handler.handler" ]

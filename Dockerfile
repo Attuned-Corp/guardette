@@ -1,10 +1,18 @@
-FROM public.ecr.aws/lambda/python:3.11
+FROM python:3.11-slim
 
-COPY ./src/guardette ${LAMBDA_TASK_ROOT}/src/guardette
-COPY pyproject.toml ${LAMBDA_TASK_ROOT}
-RUN pip install .
+RUN pip install poetry
 
-COPY main.py ${LAMBDA_TASK_ROOT}
-COPY ./.guardette/policy.yml ${LAMBDA_TASK_ROOT}/.guardette/policy.yml
+WORKDIR /app
 
-CMD [ "main.handler" ]
+COPY ./src/guardette /app/src/guardette
+COPY pyproject.toml poetry.lock /app/
+RUN poetry install --only main
+
+COPY main.py /app/
+COPY ./.guardette/policy.yml /app/.guardette/policy.yml
+
+ENV HOST=0.0.0.0
+ENV PORT=8000
+
+EXPOSE ${PORT}
+CMD poetry run uvicorn main:app --host ${HOST} --port ${PORT}
