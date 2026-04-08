@@ -1,6 +1,7 @@
 import asyncio
-import typing
+from collections.abc import Callable, Awaitable, Iterable
 from dataclasses import dataclass
+from typing import TypedDict
 from guardette.config import ConfigManager
 
 from guardette.datastructures import ProxyRequest
@@ -10,28 +11,28 @@ from guardette.secrets import SecretsManager
 @dataclass
 class AuthContext:
     request: ProxyRequest
-    secret_params: typing.Dict[str, str]
-    config_params: typing.Dict[str, str | None]
+    secret_params: dict[str, str]
+    config_params: dict[str, str | None]
 
 
-AuthHandler = typing.Callable[[AuthContext], typing.Awaitable[None]]
+AuthHandler = Callable[[AuthContext], Awaitable[None]]
 
 
-class AuthHandlerRecord(typing.TypedDict):
-    secret_keys: typing.Iterable[str]
-    config_keys: typing.Iterable[str]
+class AuthHandlerRecord(TypedDict):
+    secret_keys: Iterable[str]
+    config_keys: Iterable[str]
     handler: AuthHandler
 
 
 class AuthHandlerRegistry:
     def __init__(self, handlers=None):
-        self.handlers: typing.Dict[str, AuthHandlerRecord] = handlers or {}
+        self.handlers: dict[str, AuthHandlerRecord] = handlers or {}
 
     def register(
         self,
         kind,
-        secret_keys: typing.Iterable[str],
-        config_keys: typing.Iterable[str] | None = None,
+        secret_keys: Iterable[str],
+        config_keys: Iterable[str] | None = None,
     ):
         if config_keys is None:
             config_keys = []
@@ -66,7 +67,7 @@ class AuthHandlerRegistry:
             prefix = f"auth_{kind}_{subkind}"
 
         record = self.handlers[kind]
-        secret_params: typing.Dict[str, str] = dict(
+        secret_params: dict[str, str] = dict(
             zip(
                 record["secret_keys"],
                 await asyncio.gather(

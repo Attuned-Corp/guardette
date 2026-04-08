@@ -204,7 +204,6 @@ files = [
 
 [package.dependencies]
 frozenlist = ">=1.1.0"
-typing-extensions = {version = ">=4.2", markers = "python_version < \"3.13\""}
 
 [[package]]
 name = "annotated-doc"
@@ -245,7 +244,6 @@ files = [
 [package.dependencies]
 idna = ">=2.8"
 trio = {version = ">=0.32.0", optional = true, markers = "python_version >= \"3.10\" and extra == \"trio\""}
-typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 
 [package.extras]
 trio = ["trio (>=0.31.0) ; python_version < \"3.10\"", "trio (>=0.32.0) ; python_version >= \"3.10\""]
@@ -1857,7 +1855,6 @@ files = [
 
 [package.dependencies]
 anyio = ">=3.6.2,<5"
-typing-extensions = {version = ">=4.10.0", markers = "python_version < \"3.13\""}
 
 [package.extras]
 full = ["httpx (>=0.27.0,<0.29.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.18)", "pyyaml"]
@@ -1897,7 +1894,6 @@ files = [
 [package.dependencies]
 botocore-stubs = "*"
 types-aiobotocore-secretsmanager = {version = ">=3.2.0,<3.3.0", optional = true, markers = "extra == \"secretsmanager\""}
-typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
 
 [package.extras]
 accessanalyzer = ["types-aiobotocore-accessanalyzer (>=3.2.0,<3.3.0)"]
@@ -2331,9 +2327,6 @@ files = [
     {file = "types_aiobotocore_secretsmanager-3.2.1.tar.gz", hash = "sha256:4a2b8c443c769f580f034a3a5df3eaadd114de455d8f4d965072e25e19a9fc8e"},
 ]
 
-[package.dependencies]
-typing-extensions = {version = "*", markers = "python_version < \"3.12\""}
-
 [[package]]
 name = "types-awscrt"
 version = "0.31.2"
@@ -2661,5 +2654,5 @@ lambda = ["mangum"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.11,<4"
-content-hash = "980f82924f4978dac0bc60009d102b0825cc0213bc316672318e50afda727663"
+python-versions = ">=3.13,<4"
+content-hash = "16e0799fb0ca33fb30d508b735cb6c92f1ee7baa9faf4d0e5c3b12d4ccc035a9"

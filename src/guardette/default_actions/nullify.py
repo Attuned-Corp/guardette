@@ -1,10 +1,9 @@
-import typing
 from guardette.actions import action_registry, Action, ActionContext
 
 
 @action_registry.register("nullify")
 class RedactAction(Action):
-    json_paths: typing.List[str]
+    json_paths: list[str]
 
     async def response(self, ctx: ActionContext):
         for path in self.json_paths:
