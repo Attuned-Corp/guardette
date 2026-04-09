@@ -12,15 +12,7 @@ Guardette is a **redacting proxy layer** that sits between the REST APIs of yo
 
 ## **Getting Started**
 
-### Installation
-
-1. **Install Dependencies**
-
-```
-poetry install
-```
-
-2. **Generate a policy.yml**
+### Generate a policy.yml
 
 Span will send you a config file to generate your policy.yml with, but it might look something like this:
 
@@ -37,7 +29,6 @@ Span will send you a config file to generate your policy.yml with, but it might 
     }
   ]
 }
-
 ```
 
 ```
@@ -46,21 +37,73 @@ poetry run python scripts/policygen/policygen.py --config=policygen.config.json
 
 Upon successful execution, a `.guardette/policy.yml` file will be created. This YAML file contains the rules that the proxy will use to enforce data access policies.
 
-3. **Run locally**
+### Setup
+
+#### Option A: Docker
+
+1. **Build the image**
 
 ```
-SECRET_MANAGER=default CLIENT_SECRET=secret poetry run uvicorn main:app --reload
+docker build -t guardette .
 ```
+
+2. **Run the container**
+
+Mount your policy file and pass secrets via environment variables:
+
+```
+docker run \
+  -v $(pwd)/.guardette/policy.yml:/app/config/policy.yml:ro \
+  -e CLIENT_SECRET=your-secret \
+  -p 8000:8000 \
+  guardette
+```
+
+Or using Docker Compose:
+
+```
+docker compose up
+```
+
+See `docker-compose.yml` for a complete example with all configuration options.
+
+#### Option B: Local
+
+1. **Install dependencies**
+
+```
+poetry install
+```
+
+2. **Set up your `.env` file** (see `.env.example`)
+
+```
+cp .env.example .env
+```
+
+3. **Run the server**
+
+```
+poetry run uvicorn main:app --reload
+```
+
+### Verify it works
 
 ```
 curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com" "http://localhost:8000/v0/item/8863.json?print=pretty"
 ```
 
-4. **Build Docker image**
+### Environment Variables
 
-```
-docker build -t guardette .
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CLIENT_SECRET` | Yes | - | Secret for authenticating requests to Guardette |
+| `GUARDETTE_POLICY_PATH` | Yes | `/app/config/policy.yml` (Docker) / `.guardette/policy.yml` (local via `.env`) | Path to policy YAML file |
+| `SECRET_MANAGER` | No | `default` | Secret manager backend (`default` or `aws_secret_manager`) |
+| `PROXY_CLIENT_TIMEOUT_SECS` | No | `60` | Proxy request timeout in seconds |
+| `SECRET_MANAGER_CACHE_TTL_SECS` | No | `120` | Secret cache TTL in seconds |
+| `PSEUDONYMIZE_SALT` | No | `""` | Salt for email pseudonymization |
+| `PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST` | No | `""` | Comma-separated domain allowlist |
 
 ## **Deploying to AWS Lambda**
 
