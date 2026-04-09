@@ -1,6 +1,7 @@
 config:
   recruiting:
     default: true
+
 source:
   host: www.googleapis.com
   auth: gcp_service_account
