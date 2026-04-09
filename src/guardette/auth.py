@@ -1,9 +1,9 @@
 import asyncio
-from collections.abc import Callable, Awaitable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import TypedDict
-from guardette.config import ConfigManager
 
+from guardette.config import ConfigManager
 from guardette.datastructures import ProxyRequest
 from guardette.secrets import SecretsManager
 
@@ -58,7 +58,7 @@ class AuthHandlerRegistry:
         secrets: SecretsManager,
         config: ConfigManager,
     ):
-        kinddef_parts = kinddef.split(':')
+        kinddef_parts = kinddef.split(":")
         if len(kinddef_parts) == 1:
             kind = kinddef_parts[0]
             prefix = f"auth_{kind}"
@@ -70,19 +70,16 @@ class AuthHandlerRegistry:
         secret_params: dict[str, str] = dict(
             zip(
                 record["secret_keys"],
-                await asyncio.gather(
-                    *[
-                        secrets.get(f"{prefix}_{k}".upper())
-                        for k in record["secret_keys"]
-                    ]
-                ), strict=True,
+                await asyncio.gather(*[secrets.get(f"{prefix}_{k}".upper()) for k in record["secret_keys"]]),
+                strict=True,
             )
         )
 
         config_params = dict(
             zip(
                 record["config_keys"],
-                [config.get(f"{prefix}_{k}".upper()) for k in record["config_keys"]], strict=True,
+                [config.get(f"{prefix}_{k}".upper()) for k in record["config_keys"]],
+                strict=True,
             )
         )
 

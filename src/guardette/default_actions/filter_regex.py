@@ -1,7 +1,8 @@
 import re
 
-from guardette.actions import action_registry, Action, ActionContext
 from pydantic import Field, model_validator
+
+from guardette.actions import Action, ActionContext, action_registry
 
 
 @action_registry.register("filter_regex")

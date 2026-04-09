@@ -50,6 +50,7 @@ packages = [{include = "guardette", from = "src"}]
 build = "*"
 jinja2 = ">=3.1.2"
 pytest = "*"
+pre-commit = "*"
 ruff = "*"
 requests = "*"
 
@@ -62,4 +63,9 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120
-select = ["E", "F", "W", "B"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I"]
+
+[tool.ruff.format]
+quote-style = "double"

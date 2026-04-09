@@ -1,11 +1,11 @@
-from pydantic import BaseModel
 from dataclasses import dataclass
-from jsonpath_ng.ext import parse
-from guardette.config import ConfigManager
 
+from jsonpath_ng.ext import parse
+from pydantic import BaseModel
+
+from guardette.config import ConfigManager
 from guardette.datastructures import ProxyRequest, ProxyResponse
 from guardette.secrets import SecretsManager
-
 
 _json_path_cache = {}
 
@@ -39,11 +39,9 @@ class Action(BaseModel):
     def validate_config(cls, config: ConfigManager):
         pass
 
-    async def request(self, ctx: ActionContext):
-        ...
+    async def request(self, ctx: ActionContext): ...
 
-    async def response(self, ctx: ActionContext):
-        ...
+    async def response(self, ctx: ActionContext): ...
 
 
 class ActionRegistry:

@@ -1,6 +1,13 @@
 repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.0.278
-  hooks:
-    - id: ruff
-      args: [--fix, --show-fixes]
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: poetry run ruff check --fix --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: poetry run ruff format --force-exclude
+        language: system
+        types: [python]

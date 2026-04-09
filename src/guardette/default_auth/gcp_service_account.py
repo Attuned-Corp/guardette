@@ -1,24 +1,19 @@
 import json
-import jwt
 import time
+
 import httpx
+import jwt
 
 from guardette.auth import AuthContext, auth_registry
 from guardette.exceptions import AuthHandlerAuthException
 
-
 GCP_IMPERSONATE_SUB_HEADER = "X-Guardette-Gcp-Impersonate-Sub"
 
 
-@auth_registry.register(
-    "gcp_service_account", secret_keys=["secret"], config_keys=["scopes"]
-)
+@auth_registry.register("gcp_service_account", secret_keys=["secret"], config_keys=["scopes"])
 async def gcp_service_account(ctx: AuthContext):
     credentials = json.loads(ctx.secret_params["secret"])
-    sub = (
-        ctx.request.headers.get(GCP_IMPERSONATE_SUB_HEADER)
-        or credentials["client_email"]
-    )
+    sub = ctx.request.headers.get(GCP_IMPERSONATE_SUB_HEADER) or credentials["client_email"]
 
     if not ctx.config_params["scopes"]:
         raise AuthHandlerAuthException("gcp_service_account: `scopes` is required.")

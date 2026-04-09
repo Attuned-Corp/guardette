@@ -1,4 +1,5 @@
 import base64
+
 from guardette.auth import AuthContext, auth_registry
 
 

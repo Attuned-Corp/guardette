@@ -3,13 +3,13 @@ import time
 from typing import Protocol
 
 from aiobotocore.session import get_session
+from types_aiobotocore_secretsmanager import SecretsManagerClient
 
 from guardette.config import ConfigManager
 from guardette.exceptions import ConfigurationException, SecretsRetrievalException
 
-from types_aiobotocore_secretsmanager import SecretsManagerClient
-
 logger = logging.getLogger("guardette")
+
 
 class SecretManagerType:
     DEFAULT = "default"
@@ -17,8 +17,7 @@ class SecretManagerType:
 
 
 class SecretsManager(Protocol):
-    async def get(self, key) -> str:
-        ...
+    async def get(self, key) -> str: ...
 
 
 class ConfigSecretsManager:
