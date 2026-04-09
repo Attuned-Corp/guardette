@@ -11,4 +11,6 @@ RUN poetry install --only main --extras lambda
 COPY main.py lambda_handler.py ${LAMBDA_TASK_ROOT}
 COPY ./.guardette/policy.yml ${LAMBDA_TASK_ROOT}/.guardette/policy.yml
 
+ENV GUARDETTE_POLICY_PATH=${LAMBDA_TASK_ROOT}/.guardette/policy.yml
+
 CMD [ "lambda_handler.handler" ]

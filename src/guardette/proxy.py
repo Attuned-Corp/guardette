@@ -8,24 +8,25 @@ from secrets import compare_digest
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from guardette.logging import setup_logging
 from starlette.datastructures import URL, MutableHeaders
 
-from guardette.config import ConfigManager
 from guardette.actions import ActionContext, action_registry
 from guardette.auth import AuthHandlerRegistry, auth_registry
+from guardette.config import ConfigManager
+from guardette.constants import PROXY_ERROR_HEADER, PROXY_HOST_HEADER
 from guardette.datastructures import ProxyRequest, ProxyResponse
 from guardette.exceptions import (
     AuthException,
     ConfigurationException,
     GuardetteException,
     HttpMethodNotSupportedException,
-    ProxyClientTimeoutException,
     MatchNotFoundException,
+    ProxyClientTimeoutException,
     TransformationException,
 )
+from guardette.logging import setup_logging
 from guardette.matching import Matcher, SourceMatcherResult
-from guardette.policy import load_policy
+from guardette.policy import Policy
 from guardette.secrets import (
     AwsSecretsManager,
     ConfigSecretsManager,
@@ -34,9 +35,6 @@ from guardette.secrets import (
 )
 from guardette.utils import copy_signature
 from guardette.version import VERSION
-from guardette.constants import PROXY_HOST_HEADER, PROXY_ERROR_HEADER
-
-
 
 STRIP_REQUEST_HEADERS = {
     PROXY_HOST_HEADER.lower(),
@@ -85,7 +83,7 @@ def guardette_route():
     def wrapper(func):
         @functools.wraps(func)
         async def wrapped(*args, **kwargs):
-            request: Request = kwargs.get('request') or args[0]
+            request: Request = kwargs.get("request") or args[0]
             correlation_id = str(uuid.uuid4())
             request.state.correlation_id = correlation_id
             logger.info(
@@ -96,7 +94,7 @@ def guardette_route():
                     "url": str(request.url),
                     "client_host": request.client.host if request.client else "unknown",
                     "proxy_host": request.headers.get(PROXY_HOST_HEADER, "unknown"),
-                }
+                },
             )
             start_time = time.time()
 
@@ -110,7 +108,7 @@ def guardette_route():
                         "status_code": response.status_code,
                         "content_type": response.headers.get("Content-Type", "unknown"),
                         "elapsed_time": f"{elapsed_time:.3f}s",
-                    }
+                    },
                 )
                 return response
             except GuardetteException as ge:
@@ -126,7 +124,7 @@ def guardette_route():
                         "correlation_id": correlation_id,
                         "exception": str(ge),
                         "elapsed_time": f"{elapsed_time:.3f}s",
-                    }
+                    },
                 )
                 return _make_error_response(correlation_id, status_code, message)
             except Exception as exc:
@@ -138,21 +136,25 @@ def guardette_route():
                         "correlation_id": correlation_id,
                         "exception": str(exc),
                         "elapsed_time": f"{elapsed_time:.3f}s",
-                    }
+                    },
                 )
                 return _make_error_response(
-                    correlation_id, 500, "Internal Server Error",
+                    correlation_id,
+                    500,
+                    "Internal Server Error",
                     details="An unexpected error occurred.",
                 )
+
         return wrapped
+
     return wrapper
 
 
 class Guardette:
-    def __init__(self, policy_path=".guardette/policy.yml"):
+    def __init__(self, policy_path: str):
         self.actions = action_registry
         self.auth = auth_registry
-        self.policy = load_policy(policy_path)
+        self.policy = Policy.from_file(policy_path)
         self.config = ConfigManager()
 
         for source in self.policy.sources:
@@ -188,7 +190,7 @@ class Guardette:
         if not req_client_secret:
             raise AuthException("Missing authorization header.")
 
-        client_secret = await self.secrets.get('CLIENT_SECRET', correlation_id=request.state.correlation_id)
+        client_secret = await self.secrets.get("CLIENT_SECRET", correlation_id=request.state.correlation_id)
 
         if not compare_digest(req_client_secret, client_secret):
             raise AuthException("Invalid authorization header.")
@@ -218,7 +220,10 @@ class Guardette:
             raise MatchNotFoundException("Match not found.")
 
         proxy_transformer = ProxyTransformer(
-            auth=self.auth, config=self.config, secrets=self.secrets, match=match,
+            auth=self.auth,
+            config=self.config,
+            secrets=self.secrets,
+            match=match,
         )
         try:
             proxy_request = await proxy_transformer.transform_request(request)
@@ -230,7 +235,8 @@ class Guardette:
             try:
                 if request.method == "GET":
                     response = await client.get(
-                        proxy_request.url, headers=proxy_request.headers,
+                        proxy_request.url,
+                        headers=proxy_request.headers,
                     )
                 elif request.method == "POST":
                     response = await client.post(
@@ -252,15 +258,18 @@ class Guardette:
                     )
                 elif request.method == "DELETE":
                     response = await client.delete(
-                        proxy_request.url, headers=proxy_request.headers,
+                        proxy_request.url,
+                        headers=proxy_request.headers,
                     )
                 elif request.method == "HEAD":
                     response = await client.head(
-                        proxy_request.url, headers=proxy_request.headers,
+                        proxy_request.url,
+                        headers=proxy_request.headers,
                     )
                 elif request.method == "OPTIONS":
                     response = await client.options(
-                        proxy_request.url, headers=proxy_request.headers,
+                        proxy_request.url,
+                        headers=proxy_request.headers,
                     )
                 else:
                     raise HttpMethodNotSupportedException(f"Unexpected http method: {request.method}")
@@ -324,11 +333,7 @@ class ProxyTransformer:
         )
 
         headers = MutableHeaders(
-            {
-                k: v
-                for k, v in in_request.headers.items()
-                if k.lower() not in STRIP_REQUEST_HEADERS
-            },
+            {k: v for k, v in in_request.headers.items() if k.lower() not in STRIP_REQUEST_HEADERS},
         )
         body = await in_request.body()
         if body:
@@ -337,11 +342,12 @@ class ProxyTransformer:
             json_data = None
 
         self._proxy_request = ProxyRequest(
-            url=url, headers=headers, json_data=json_data,
+            url=url,
+            headers=headers,
+            json_data=json_data,
         )
         if self.target.auth:
-            logger.debug(f"Using target auth handler: {self.target.auth}",
-                         extra={"correlation_id": correlation_id})
+            logger.debug(f"Using target auth handler: {self.target.auth}", extra={"correlation_id": correlation_id})
             await self.auth(
                 self.target.auth,
                 request=self._proxy_request,
@@ -354,15 +360,17 @@ class ProxyTransformer:
             secrets=self.secrets,
             request=self._proxy_request,
             response=ProxyResponse(
-                status_code=0, headers=MutableHeaders(), json_data=None,
+                status_code=0,
+                headers=MutableHeaders(),
+                json_data=None,
             ),
         )
         logger.debug(
             "Transforming request",
             extra={
                 "correlation_id": correlation_id,
-                "actions": [action.__class__.__name__ for action in self.rule.actions]
-            }
+                "actions": [action.__class__.__name__ for action in self.rule.actions],
+            },
         )
         for action in self.rule.actions:
             await action.request(ctx)
@@ -373,37 +381,32 @@ class ProxyTransformer:
 
         if self._proxy_request is None:
             raise Exception(
-                "Cannot call transform_response() without first "
-                "calling transform_request()",
+                "Cannot call transform_response() without first calling transform_request()",
             )
         status_code = in_response.status_code
         headers = MutableHeaders(
-            {
-                k: v
-                for k, v in in_response.headers.items()
-                if k.lower() not in STRIP_RESPONSE_HEADERS
-            },
+            {k: v for k, v in in_response.headers.items() if k.lower() not in STRIP_RESPONSE_HEADERS},
         )
         try:
             json_data = in_response.json()
         except Exception as e:
-            raise TransformationException(
-                "Upstream returned non-JSON response"
-            ) from e
+            raise TransformationException("Upstream returned non-JSON response") from e
         ctx = ActionContext(
             config=self.config,
             secrets=self.secrets,
             request=self._proxy_request,
             response=ProxyResponse(
-                status_code=status_code, headers=headers, json_data=json_data,
+                status_code=status_code,
+                headers=headers,
+                json_data=json_data,
             ),
         )
         logger.debug(
             "Transforming response",
             extra={
                 "correlation_id": correlation_id,
-                "actions": [action.__class__.__name__ for action in self.rule.actions]
-            }
+                "actions": [action.__class__.__name__ for action in self.rule.actions],
+            },
         )
         for action in self.rule.actions:
             await action.response(ctx)

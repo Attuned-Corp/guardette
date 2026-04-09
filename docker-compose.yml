@@ -1,0 +1,17 @@
+services:
+  guardette:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.guardette/policy.yml:/app/config/policy.yml:ro
+    environment:
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - PSEUDONYMIZE_SALT=${PSEUDONYMIZE_SALT:-}
+      - SECRET_MANAGER=${SECRET_MANAGER:-default}
+      - PROXY_CLIENT_TIMEOUT_SECS=${PROXY_CLIENT_TIMEOUT_SECS:-60}
+      - SECRET_MANAGER_CACHE_TTL_SECS=${SECRET_MANAGER_CACHE_TTL_SECS:-120}
+      - PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST=${PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST:-}
+    env_file:
+      - path: .env
+        required: false

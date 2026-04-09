@@ -9,8 +9,8 @@ COPY pyproject.toml poetry.lock /app/
 RUN poetry install --only main
 
 COPY main.py /app/
-COPY ./.guardette/policy.yml /app/.guardette/policy.yml
 
+ENV GUARDETTE_POLICY_PATH=/app/config/policy.yml
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
