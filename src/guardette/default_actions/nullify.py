@@ -1,4 +1,4 @@
-from guardette.actions import action_registry, Action, ActionContext
+from guardette.actions import Action, ActionContext, action_registry
 
 
 @action_registry.register("nullify")

@@ -1,4 +1,5 @@
 import pytest
+
 from guardette.actions import action_registry
 
 
@@ -33,11 +34,14 @@ async def test_filter_regex(action_context):
 async def test_redact_regex(action_context):
     redact_token = action_context.config.REDACT_TOKEN
     action = action_registry.get_action_cls("redact_regex").model_validate(
-        dict(json_paths=[
-            "$.path.to.data1",
-            "$.path.to.data2",
-            '$.path.multiple[*].items[?(@.field = "summary")].text',
-        ], regex_pattern="test")
+        dict(
+            json_paths=[
+                "$.path.to.data1",
+                "$.path.to.data2",
+                '$.path.multiple[*].items[?(@.field = "summary")].text',
+            ],
+            regex_pattern="test",
+        )
     )
     action_context.response.json_data = {
         "path": {
@@ -51,7 +55,7 @@ async def test_redact_regex(action_context):
                     ],
                 }
             ],
-            "ignore": "test"
+            "ignore": "test",
         }
     }
 
@@ -71,4 +75,3 @@ async def test_redact_regex(action_context):
             "ignore": "test",
         }
     }
-

@@ -1,6 +1,8 @@
 from typing import Any, TypedDict
+
 from fastapi import Request
 from starlette.routing import compile_path
+
 from guardette.policy import Policy, Rule, Source
 
 
@@ -54,9 +56,7 @@ class SourceMatcher:
 class Matcher:
     def __init__(self, policy: Policy):
         self.policy = policy
-        self.target_matchers = {
-            target.host: SourceMatcher(target) for target in self.policy.sources
-        }
+        self.target_matchers = {target.host: SourceMatcher(target) for target in self.policy.sources}
 
     def match(self, request: Request, target_host: str):
         if target_host not in self.target_matchers:

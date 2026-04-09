@@ -20,9 +20,11 @@ class CustomJSONFormatter(logging.Formatter):
             log_record["exception"] = self.formatException(record.exc_info)
 
         # Include other extra attributes
-        extra_attributes = set(record.__dict__.keys()) \
-            - set(logging.LogRecord(None, None, None, None, '', (), None).__dict__.keys()) \
+        extra_attributes = (
+            set(record.__dict__.keys())
+            - set(logging.LogRecord(None, None, None, None, "", (), None).__dict__.keys())
             - {"exc_info"}
+        )
         for key in extra_attributes:
             if key not in log_record:
                 log_record[key] = record.__dict__.get(key)
@@ -42,4 +44,3 @@ def setup_logging():
     console_handler.setLevel(log_level)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-

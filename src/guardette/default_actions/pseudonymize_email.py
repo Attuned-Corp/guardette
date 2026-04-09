@@ -1,6 +1,7 @@
-import hashlib
 import base64
-from guardette.actions import action_registry, Action, ActionContext
+import hashlib
+
+from guardette.actions import Action, ActionContext, action_registry
 from guardette.config import ConfigManager
 from guardette.exceptions import ConfigurationException
 
@@ -18,7 +19,7 @@ class PseudonymizeEmail(Action):
             )
 
     async def response(self, ctx: ActionContext):
-        salt = await ctx.secrets.get('PSEUDONYMIZE_SALT')
+        salt = await ctx.secrets.get("PSEUDONYMIZE_SALT")
 
         def updater(email, data, k):
             if not isinstance(email, str):
@@ -32,16 +33,8 @@ class PseudonymizeEmail(Action):
             if domain in ctx.config.PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST:
                 return email
 
-            username_hash = (
-                base64.b32encode(hashlib.sha256((username + salt).encode()).digest())
-                .decode()
-                .rstrip("=")
-            )
-            domain_hash = (
-                base64.b32encode(hashlib.sha256((domain + salt).encode()).digest())
-                .decode()
-                .rstrip("=")
-            )
+            username_hash = base64.b32encode(hashlib.sha256((username + salt).encode()).digest()).decode().rstrip("=")
+            domain_hash = base64.b32encode(hashlib.sha256((domain + salt).encode()).digest()).decode().rstrip("=")
             return f"u-{username_hash}@d-{domain_hash}.invalid".lower()
 
         for path in self.json_paths:
