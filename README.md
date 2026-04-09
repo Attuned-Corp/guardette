@@ -1,8 +1,8 @@
 # Guardette Documentation
 
-Guardette is a **redacting proxy layer** that sits between the REST APIs of your data sources and vendors who require access to a subset of that data. By leveraging Guardette, you can achieve **more secure and granular access control** through customizable redaction and allow-listing rules defined in a YAML file.
+Guardette is a **redacting proxy layer** that sits between the REST APIs of your data sources and vendors who require access to a subset of that data. By leveraging Guardette, you can achieve **more secure and granular access control** through customizable redaction and allow-listing rules defined in a YAML file.
 
-## **Features**
+## Features
 
 - **Flexible Deployment**: Run as a standalone webservice or deploy as an AWS Lambda function.
 - **Redaction and Filtering**: Define precise rules to redact sensitive information or filter specific data fields.
@@ -10,7 +10,7 @@ Guardette is a **redacting proxy layer** that sits between the REST APIs of yo
 - **Authentication Support**: Integrate with various authentication mechanisms, including AWS Secrets Manager for secure credential management.
 - **Extensible**: Easily add custom actions and authentication handlers to extend Guardette's capabilities.
 
-## **Getting Started**
+## Getting Started
 
 ### Generate a policy.yml
 
@@ -105,7 +105,7 @@ curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com
 | `PSEUDONYMIZE_SALT` | No | `""` | Salt for email pseudonymization |
 | `PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST` | No | `""` | Comma-separated domain allowlist |
 
-## **Deploying to AWS Lambda**
+## Deploying to AWS Lambda
 
 To deploy as an AWS Lambda function, build with the Lambda Dockerfile:
 
@@ -115,41 +115,58 @@ docker build -f Dockerfile.awslambda -t guardette-lambda .
 
 See [terraform/aws/README.md](terraform/aws/README.md) for full deployment instructions.
 
-## **Authentication Configuration**
+## Authentication Configuration
 
-Guardette supports various authentication mechanisms to secure access to your proxied APIs. This section covers configuring authentication secrets using AWS Secrets Manager.
+Guardette supports multiple authentication handlers (`basic_auth`, `bearer_token`, `gcp_service_account`) defined in the `guardette/default_auth/` directory. When a policy specifies an auth handler, Guardette looks up the required credentials via environment variables.
 
-1. **Create Secrets in AWS Secrets Manager**
+### Naming Convention
 
-For each authentication method (e.g., Jira), create secrets in AWS Secrets Manager. Each secret should store the necessary credentials. The naming convention for these secrets is crucial for Guardette to recognize and utilize them correctly.
+Auth credentials are resolved from environment variables following the pattern `AUTH_{HANDLER}_{SUBKIND}_{KEY}` (uppercased). The handler and key are determined by the auth handler's registration, and the subkind comes from your policy file.
 
-**Example for Jira**:
+| Policy `auth` value | Required environment variables |
+|---|---|
+| `basic_auth:jira` | `AUTH_BASIC_AUTH_JIRA_USERNAME`, `AUTH_BASIC_AUTH_JIRA_PASSWORD` |
+| `bearer_token:github` | `AUTH_BEARER_TOKEN_GITHUB_SECRET` |
+| `gcp_service_account` | `AUTH_GCP_SERVICE_ACCOUNT_SECRET`, `AUTH_GCP_SERVICE_ACCOUNT_SCOPES` |
 
-- **Secret Name**: AUTH_BASIC_AUTH_, AUTH_JIRA_PASSWORD
-- **Secret Values**: Your Jira username and password.
+### Secret Manager Backends
 
-**Naming Convention**:
+The `SECRET_MANAGER` environment variable controls how these credential values are interpreted.
 
-- For an authentication handler like basic_auth:jira, Guardette expects the following environment variables:
-    - AUTH_BASIC_AUTH_JIRA_USERNAME
-    - AUTH_BASIC_AUTH_JIRA_PASSWORD
+#### Option 1: Environment Variables (default)
 
-**Example**:
+Set `SECRET_MANAGER=default` (or omit it — this is the default). Environment variables contain the **actual secret values** directly.
 
-```python
+```
+AUTH_BASIC_AUTH_JIRA_USERNAME=your_jira_username
+AUTH_BASIC_AUTH_JIRA_PASSWORD=your_jira_password
+```
+
+Best for: Docker and local development.
+
+#### Option 2: AWS Secrets Manager
+
+Set `SECRET_MANAGER=aws_secret_manager`. Environment variables contain **ARNs** pointing to secrets in AWS Secrets Manager. Guardette fetches the actual values at runtime, with TTL-based caching controlled by `SECRET_MANAGER_CACHE_TTL_SECS`.
+
+```
+SECRET_MANAGER=aws_secret_manager
+AUTH_BASIC_AUTH_JIRA_USERNAME=arn:aws:secretsmanager:us-west-2:123456789012:secret:JIRA_USERNAME
+AUTH_BASIC_AUTH_JIRA_PASSWORD=arn:aws:secretsmanager:us-west-2:123456789012:secret:JIRA_PASSWORD
+```
+
+Best for: AWS Lambda deployments.
+
+To create secrets in AWS Secrets Manager:
+
+```bash
 aws secretsmanager create-secret --name AUTH_BASIC_AUTH_JIRA_USERNAME --secret-string "your_jira_username"
 aws secretsmanager create-secret --name AUTH_BASIC_AUTH_JIRA_PASSWORD --secret-string "your_jira_password"
 ```
 
-2. **Example: Update Terraform Variables**
+For Lambda deployments, pass the ARNs via Terraform:
 
-In your Terraform configuration (terraform/aws/variables.tf), ensure the following variables are set to reference your AWS Secrets Manager secrets:
-
-```
+```hcl
 variable "environment_vars" {
-  description = "Environment variables to launch the lambda with"
-  type        = map(any)
-
   default = {
     SECRET_MANAGER                       = "aws_secret_manager"
     CLIENT_SECRET                        = "arn:aws:secretsmanager:us-west-2:123456789012:secret:CLIENT_SECRET"
@@ -158,15 +175,14 @@ variable "environment_vars" {
     AUTH_BASIC_AUTH_JIRA_USERNAME        = "arn:aws:secretsmanager:us-west-2:123456789012:secret:JIRA_USERNAME"
     AUTH_BASIC_AUTH_JIRA_PASSWORD        = "arn:aws:secretsmanager:us-west-2:123456789012:secret:JIRA_PASSWORD"
   }
-
-  # ... (validation and other settings)
 }
-
 ```
 
-### Configuration Details
+See [terraform/aws/README.md](terraform/aws/README.md) for full deployment instructions.
 
-Guardette uses a policy file (.guardette/policy.yml) to determine how to handle incoming API requests. This file is generated using the policygen.py script based on the policygen.config.json configuration.
+### Policy Configuration
+
+Guardette uses a policy file (`.guardette/policy.yml`) to determine how to handle incoming API requests. This file is generated using the `policygen.py` script based on the `policygen.config.json` configuration.
 
 - **policygen.config.json**: Defines the sources and their specific configurations.
 - **scripts/policygen/policygen.py**: Processes the configuration and generates the policy YAML file.
@@ -205,19 +221,6 @@ Here's an example of a policy template for a Google Workspace Calendar source:
           regex_pattern: '\b(https:\/\/[^.]+\.greenhouse\.io\/[^\s]+|https://[^.]+\.ashbyhq\.com\/[^\s]+)\b'
           delimiter: " "
 ```
-
-**Authentication Handlers**
-
-Guardette supports multiple authentication handlers, such as `basic_auth`, `bearer_token`, and `gcp_service_account`. These handlers are defined in the guardette/default_auth/ directory and registered in the auth.py module.
-
-**How Authentication Handlers Work**
-
-When defining an authentication handler in your policy (e.g., `basic_auth:jira`), Guardette expects specific environment variables to retrieve the necessary credentials. The handler's registration in basic_auth.py dictates which environment variables to look for. For example, if you register an authentication handler as `basic_auth:jira`, Guardette will require the following environment variables:
-
-- AUTH_BASIC_AUTH_JIRA_USERNAME
-- AUTH_BASIC_AUTH_JIRA_PASSWORD
-
-These variables should contain the username and password, respectively, for Jira. Guardette will fetch these secrets from AWS Secrets Manager based on their names and use them to authenticate API requests.
 
 ## Development Setup
 ```
