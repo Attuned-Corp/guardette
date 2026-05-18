@@ -139,6 +139,22 @@ Extracts all matches of a regex pattern and replaces the field value with only t
 
 **Use when:** You only need specific structured data (e.g., URLs) from a free-text field and want to discard everything else.
 
+### `redact_secrets`
+
+Scans string values with [detect-secrets](https://github.com/Yelp/detect-secrets) and replaces any detected secrets (API keys, tokens, high-entropy strings, etc.) with the redaction token. Surrounding text is preserved; only the secret substring itself is replaced. Non-string values are left unchanged. All built-in detect-secrets plugins run.
+
+```yaml
+- kind: redact_secrets
+  json_paths:
+    - "$[*].diff"
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `json_paths` | `list[str]` | JSONPath expressions targeting string values |
+
+**Use when:** Free-text fields (MR diffs, commit messages, issue bodies, chat logs) may contain accidentally-pasted credentials. Complements `redact_regex` (known-shape patterns) by catching provider-specific tokens and high-entropy strings.
+
 ### `pseudonymize_email`
 
 Hashes email addresses into a deterministic pseudonymous format (`u-{hash}@d-{hash}.invalid`). The same email always produces the same pseudonym (given the same salt), preserving the ability to correlate records by email without exposing the real address.
