@@ -75,3 +75,59 @@ async def test_redact_regex(action_context):
             "ignore": "test",
         }
     }
+
+
+@pytest.mark.anyio
+async def test_redact_secrets_gitlab_diff(action_context):
+    redact_token = action_context.config.REDACT_TOKEN
+    aws_key = "AKIAIOSFODNN7EXAMPLE"
+
+    diff_with_secret = (
+        "--- a/config.py\n"
+        "+++ b/config.py\n"
+        "@@ -1,3 +1,3 @@\n"
+        ' SERVICE = "billing"\n'
+        '-AWS_KEY = "placeholder"\n'
+        f'+AWS_KEY = "{aws_key}"\n'
+        ' REGION = "us-east-1"\n'
+    )
+    diff_clean = "--- a/README.md\n+++ b/README.md\n@@ -1,1 +1,1 @@\n-old title\n+new title\n"
+
+    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$[*].diff"]))
+    action_context.response.json_data = [
+        {"old_path": "config.py", "new_path": "config.py", "diff": diff_with_secret},
+        {"old_path": "README.md", "new_path": "README.md", "diff": diff_clean},
+    ]
+
+    await action.response(action_context)
+
+    expected_redacted = (
+        "--- a/config.py\n"
+        "+++ b/config.py\n"
+        "@@ -1,3 +1,3 @@\n"
+        ' SERVICE = "billing"\n'
+        '-AWS_KEY = "placeholder"\n'
+        f'+AWS_KEY = "{redact_token}"\n'
+        ' REGION = "us-east-1"\n'
+    )
+    assert action_context.response.json_data == [
+        {"old_path": "config.py", "new_path": "config.py", "diff": expected_redacted},
+        {"old_path": "README.md", "new_path": "README.md", "diff": diff_clean},
+    ]
+
+
+@pytest.mark.anyio
+async def test_redact_secrets_ignores_allowlist(action_context):
+    redact_token = action_context.config.REDACT_TOKEN
+    aws_key = "AKIAIOSFODNN7EXAMPLE"
+
+    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$.body"]))
+    action_context.response.json_data = {
+        "body": f'AWS_KEY = "{aws_key}"  # pragma: allowlist secret',
+    }
+
+    await action.response(action_context)
+
+    assert action_context.response.json_data == {
+        "body": f'AWS_KEY = "{redact_token}"  # pragma: allowlist secret',
+    }
