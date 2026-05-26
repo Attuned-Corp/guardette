@@ -2807,4 +2807,4 @@ lambda = ["mangum"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4"
-content-hash = "babd9cdb2b7c9492a500f215e40e903a4c4657a22c0b1e53be976767fe04836a"
+content-hash = "dcceb08bb624e18ff314bf9b504b9c6c5b7394c905687127820ceb4412161e82"
