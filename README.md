@@ -1,4 +1,4 @@
-# Guardette Documentation
+# Guardette
 
 Guardette is a **redacting proxy layer** that sits between the REST APIs of your data sources and vendors who require access to a subset of that data. By leveraging Guardette, you can achieve **more secure and granular access control** through customizable redaction and allow-listing rules defined in a YAML file.
 

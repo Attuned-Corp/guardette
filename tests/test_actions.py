@@ -131,3 +131,51 @@ async def test_redact_secrets_ignores_allowlist(action_context):
     assert action_context.response.json_data == {
         "body": f'AWS_KEY = "{redact_token}"  # pragma: allowlist secret',
     }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "token",
+    [
+        "glpat-abcdefghijklmnopqrst",
+        "gldt-abcdefghijklmnopqrst",
+        "glft-abcdefghijklmnopqrst",
+        "glsoat-abcdefghijklmnopqrst",
+        "glrt-abcdefghijklmnopqrst",
+        "glcbt-abcdefghijklmnopqrst",
+        "glcbt-ab_cdefghijklmnopqrstuv",
+        "glagent-" + "a" * 50,
+        "gloas-" + "a" * 64,
+        "ghp_" + "a" * 36,
+        "gho_" + "a" * 36,
+        "ghu_" + "a" * 36,
+        "ghs_" + "a" * 36,
+        "ghr_" + "a" * 36,
+    ],
+)
+async def test_redact_secrets_token_variants(action_context, token):
+    redact_token = action_context.config.REDACT_TOKEN
+    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$.body"]))
+    action_context.response.json_data = {"body": f'TOKEN = "{token}"'}
+
+    await action.response(action_context)
+
+    assert token not in action_context.response.json_data["body"]
+    assert action_context.response.json_data == {"body": f'TOKEN = "{redact_token}"'}
+
+
+@pytest.mark.anyio
+async def test_redact_secrets_multiple_tokens(action_context):
+    redact_token = action_context.config.REDACT_TOKEN
+    pat1 = "glpat-abcdefghijklmnopqrst"
+    pat2 = "glpat-zyxwvutsrqponmlkjihg"
+
+    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$.body"]))
+    action_context.response.json_data = {"body": f'A = "{pat1}"\nB = "{pat2}"'}
+
+    await action.response(action_context)
+
+    body = action_context.response.json_data["body"]
+    assert "abcdefghijklmnopqrst" not in body
+    assert "zyxwvutsrqponmlkjihg" not in body
+    assert body == f'A = "{redact_token}"\nB = "{redact_token}"'
