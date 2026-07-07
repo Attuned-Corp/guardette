@@ -2,6 +2,7 @@ source:
   host: {{ config.gitlab_domain | default("gitlab.com") }}
   auth: bearer_token:gitlab
   rules:
+    - route: "GET /api/v4/user"
     - route: "GET /api/v4/groups"
     - route: "GET /api/v4/groups/{groupId}"
     - route: "GET /api/v4/groups/{groupId}/descendant_groups"
