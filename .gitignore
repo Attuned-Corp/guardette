@@ -204,3 +204,5 @@ terraform.rc
 # Guardette specific
 .guardette/
 **/policygen.config.json
+
+.codeql/
