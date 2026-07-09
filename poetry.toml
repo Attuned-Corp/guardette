@@ -1,2 +1,2 @@
 [solver]
-min-release-age = "604800"
+min-release-age = 7
