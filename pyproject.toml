@@ -61,9 +61,6 @@ requests = "*"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[solver]
-min-release-age = 7
-
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 
@@ -94,9 +91,10 @@ select = [
 ]
 
 ignore = [
-  "S101",   # assert used; acceptable in tests
+  "S101",    # assert used; acceptable in tests
   "PLR0913", # too many arguments; often noisy
   "PLR2004", # magic value; often noisy in tests/config
+  "PLW0718", # broad exception handling; currently accepted in a few call sites
   "TRY003",  # long exception messages; often over-prescriptive
 ]
 

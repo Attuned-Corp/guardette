@@ -3,5 +3,5 @@ files:
   - pattern: .github/workflows/*.yml
   - pattern: .github/workflows/*.yaml
 min_age:
-  value: 7
+  value: 7d
   always: true
