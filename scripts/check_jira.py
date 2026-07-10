@@ -10,11 +10,11 @@ jira_host = os.getenv("JIRA_HOST")
 
 if token is None:
     print("PROXY_TOKEN environment variable is not set.")
-    raise SystemExit(1)
+    exit(1)
 
 if jira_host is None:
     print("JIRA_HOST environment variable is not set.")
-    raise SystemExit(1)
+    exit(1)
 
 
 def do_request(url, *args, **kwargs):
