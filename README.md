@@ -24,7 +24,7 @@ Span will send you a config file to generate your policy.yml with, but it might 
       "config": {}
     },
     {
-      "kind": "jira",
+      "kind": "jira_basic_auth",
       "config": {"jira_domain": "yourdomain.atlassian.net"}
     }
   ]
