@@ -34,7 +34,10 @@ def generate(config: Config):
         template = env.get_template(f"{sourceconf.kind}/template.yml")
         source_template_yaml = template.render(config=sourceconf.config)
         source_template = yaml.safe_load(source_template_yaml)
-        policy["sources"].append(source_template["source"])
+        if "sources" in source_template:
+            policy["sources"].extend(source_template["sources"])
+        else:
+            policy["sources"].append(source_template["source"])
 
     return yaml.dump(policy, sort_keys=False)
 
