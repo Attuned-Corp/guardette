@@ -35,7 +35,7 @@ class RedactSecrets(Action):
     async def response(self, ctx: ActionContext):
         token = ctx.config.REDACT_TOKEN
 
-        def updater(value, parent, key):
+        def updater(value, _parent, _key):
             if not isinstance(value, str) or not value:
                 return value
             # scan_line forces enable_eager_search=True (huge false-positive rate

@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import sys
 
 import requests
 
@@ -10,7 +11,7 @@ gitlab_host = os.getenv("GITLAB_HOST", "gitlab.com")
 
 if token is None:
     print("PROXY_TOKEN environment variable is not set.")
-    exit(1)
+    sys.exit(1)
 
 
 def list_merge_requests(project_id):
@@ -22,7 +23,7 @@ def list_merge_requests(project_id):
 
     url = f"{proxy_base_url}/api/v4/projects/{project_id}/merge_requests"
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
 
     if response.status_code != 200:
         print(f"Error with status code: {response.status_code}, Message: {response.text}")

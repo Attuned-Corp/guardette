@@ -1,8 +1,8 @@
 import argparse
 import json
-import os
 from collections import OrderedDict
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
 
 import jinja2
 import yaml
@@ -11,16 +11,17 @@ from pydantic import BaseModel, Field
 
 class Source(BaseModel):
     kind: str
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
 class Config(BaseModel):
-    sources: List[Source]
+    sources: list[Source]
 
 
 def generate(config: Config):
-    searchpath = os.path.join(os.path.dirname(__file__), "sources")
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=searchpath))
+    searchpath = Path(__file__).parent / "sources"
+    # YAML output is not HTML; autoescaping would change policy values.
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=searchpath), autoescape=False)  # noqa: S701
 
     def represent_ordereddict(dumper, data):
         return dumper.represent_mapping("tag:yaml.org,2002:map", data.items())
@@ -45,8 +46,7 @@ if __name__ == "__main__":
     parser.add_argument("--print", action="store_true", help="Print to console")
     args = parser.parse_args()
 
-    with open(args.config, "r") as f:
-        raw_config = json.loads(f.read())
+    raw_config = json.loads(Path(args.config).read_text())
     config = Config(**raw_config)
 
     output = generate(config)
@@ -54,7 +54,6 @@ if __name__ == "__main__":
     if args.print:
         print(output)
     else:
-        if not os.path.exists(".guardette"):
-            os.makedirs(".guardette")
-        with open(".guardette/policy.yml", "w") as f:
-            f.write(output)
+        output_dir = Path(".guardette")
+        output_dir.mkdir(exist_ok=True)
+        (output_dir / "policy.yml").write_text(output)
