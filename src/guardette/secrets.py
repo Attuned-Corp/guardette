@@ -17,7 +17,7 @@ class SecretManagerType:
 
 
 class SecretsManager(Protocol):
-    async def get(self, key) -> str: ...
+    async def get(self, key, correlation_id: str | None = None) -> str: ...
 
 
 class ConfigSecretsManager:

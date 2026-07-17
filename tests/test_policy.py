@@ -16,12 +16,14 @@ def test_policy_rejects_duplicate_hosts():
     policy_data = {
         "version": "1",
         "sources": [
-            {"host": "example.com", "rules": []},
-            {"host": "example.com", "rules": []},
+            {"host": "z.example.com", "rules": []},
+            {"host": "a.example.com", "rules": []},
+            {"host": "z.example.com", "rules": []},
+            {"host": "a.example.com", "rules": []},
         ],
     }
 
-    with pytest.raises(ValidationError, match="Duplicated hosts"):
+    with pytest.raises(ValidationError, match=r"Duplicated hosts: a\.example\.com, z\.example\.com"):
         Policy.model_validate(policy_data)
 
 

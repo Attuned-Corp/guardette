@@ -42,11 +42,11 @@ class Policy(BaseModel):
     def validate_unique_hosts(cls, values: dict[str, Any]):
         hosts = [source["host"] for source in values.get("sources") or []]
         if len(hosts) != len(set(hosts)):
-            duplicates = {host for host in hosts if hosts.count(host) > 1}
+            duplicates = sorted({host for host in hosts if hosts.count(host) > 1})
             raise ValueError(f"Only one source per host is supported. Duplicated hosts: {', '.join(duplicates)}")
         return values
 
     @classmethod
     def from_file(cls, path: str) -> "Policy":
-        data = yaml.safe_load(Path(path).read_text())
+        data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
         return cls(**data)
