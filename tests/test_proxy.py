@@ -16,7 +16,7 @@ guardette.to_fastapi(app)
 
 client = TestClient(app)
 
-test_client_secret = "test"
+test_client_secret = "test"  # noqa: S105
 
 
 async def get_secret(key, *args, **kwargs):

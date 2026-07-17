@@ -13,18 +13,18 @@ logger = logging.getLogger("guardette")
 
 class SecretManagerType:
     DEFAULT = "default"
-    AWS_SECRET_MANAGER = "aws_secret_manager"
+    AWS_SECRET_MANAGER = "aws_secret_manager"  # noqa: S105
 
 
 class SecretsManager(Protocol):
-    async def get(self, key) -> str: ...
+    async def get(self, key, correlation_id: str | None = None) -> str: ...
 
 
 class ConfigSecretsManager:
     def __init__(self, config: ConfigManager):
         self.config = config
 
-    async def get(self, key, correlation_id: str = None) -> str:
+    async def get(self, key, correlation_id: str | None = None) -> str:  # noqa: ARG002
         secret = self.config.get(key)
         if secret is None:
             raise ConfigurationException(f"Missing secret for key: '{key}'.")
@@ -39,22 +39,21 @@ class AwsSecretsManager:
         # key: (secret, expiry_time)
         self._cache: dict[str, tuple[str, float]] = {}
 
-    async def get(self, key, correlation_id: str = None) -> str:
+    async def get(self, key, correlation_id: str | None = None) -> str:
         current_time = time.time()
         # Check if the secret is in cache and not expired
         if key in self._cache:
             secret, expiry = self._cache[key]
             if current_time < expiry:
                 return secret
-            else:
-                # Remove expired secret
-                del self._cache[key]
+            # Remove expired secret
+            del self._cache[key]
 
         secret = await self._fetch_secret(key, correlation_id)
         self._cache[key] = (secret, current_time + self.cache_ttl_secs)
         return secret
 
-    async def _fetch_secret(self, key, correlation_id: str = None) -> str:
+    async def _fetch_secret(self, key, correlation_id: str | None = None) -> str:
         secret_id = self.config.get(key)
         if secret_id is None:
             raise ConfigurationException(key)
@@ -68,4 +67,4 @@ class AwsSecretsManager:
                 secret_value_resp = await client.get_secret_value(SecretId=secret_id)
                 return secret_value_resp["SecretString"]
         except Exception as e:
-            raise SecretsRetrievalException(f"Error fetching secret from AWS for {key}: {str(e)}") from e
+            raise SecretsRetrievalException(f"Error fetching secret from AWS for {key}: {e!s}") from e

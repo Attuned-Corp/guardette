@@ -1,7 +1,7 @@
-import guardette.default_actions.filter_regex  # noqa
-import guardette.default_actions.redact  # noqa
-import guardette.default_actions.redact_regex  # noqa
-import guardette.default_actions.redact_secrets  # noqa
-import guardette.default_actions.remove  # noqa
-import guardette.default_actions.nullify  # noqa
-import guardette.default_actions.pseudonymize_email  # noqa
+import guardette.default_actions.filter_regex
+import guardette.default_actions.nullify
+import guardette.default_actions.pseudonymize_email
+import guardette.default_actions.redact
+import guardette.default_actions.redact_regex
+import guardette.default_actions.redact_secrets
+import guardette.default_actions.remove  # noqa: F401

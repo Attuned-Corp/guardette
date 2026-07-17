@@ -21,7 +21,7 @@ def list_pull_requests(owner, repo):
 
     url = f"{proxy_base_url}/repos/{owner}/{repo}/pulls"
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
 
     if response.status_code != 200:
         print(f"Error with status code: {response.status_code}, Message: {response.text}")
