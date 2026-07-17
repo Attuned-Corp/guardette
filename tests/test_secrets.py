@@ -22,10 +22,10 @@ async def test_aws_secrets_manager_logs_fetching_secret(caplog):
 
         # Act
         with caplog.at_level(logging.INFO):
-            secret = await aws_secrets_manager.get("TEST_SECRET", correlation_id="abcd-1234")
+            value = await aws_secrets_manager.get("TEST_SECRET", correlation_id="abcd-1234")
 
     # Assert
-    assert secret == "mock_secret"
+    assert value == "mock_secret"
     assert any(
         record.levelname == "INFO"
         and record.message.startswith("Fetching secret from AWS")

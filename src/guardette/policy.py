@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -41,12 +42,11 @@ class Policy(BaseModel):
     def validate_unique_hosts(cls, values: dict[str, Any]):
         hosts = [source["host"] for source in values.get("sources") or []]
         if len(hosts) != len(set(hosts)):
-            duplicates = set([host for host in hosts if hosts.count(host) > 1])
+            duplicates = {host for host in hosts if hosts.count(host) > 1}
             raise ValueError(f"Only one source per host is supported. Duplicated hosts: {', '.join(duplicates)}")
         return values
 
     @classmethod
     def from_file(cls, path: str) -> "Policy":
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
+        data = yaml.safe_load(Path(path).read_text())
         return cls(**data)
