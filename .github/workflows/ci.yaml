@@ -33,8 +33,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Poetry
-        uses: step-security/install-poetry@8cee588dbbc9ca4f2882c176ce61917303942193 # v1.4.2
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
         with:
+          poetry-version: "2.4.1"
           virtualenvs-create: true
           virtualenvs-in-project: true
           virtualenvs-path: .venv
