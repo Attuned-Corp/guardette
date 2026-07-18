@@ -1,5 +1,6 @@
 import base64
 import json
+import time
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -70,9 +71,14 @@ def make_gcp_credentials():
     return credentials, private_key.public_key()
 
 
+@pytest.fixture(scope="module")
+def gcp_credentials():
+    return make_gcp_credentials()
+
+
 @pytest.mark.anyio
-async def test_gcp_service_account_signs_jwt_and_uses_impersonated_subject():
-    credentials, public_key = make_gcp_credentials()
+async def test_gcp_service_account_signs_jwt_and_uses_impersonated_subject(gcp_credentials):
+    credentials, public_key = gcp_credentials
     ctx = make_auth_context(
         secret_params={"secret": json.dumps(credentials)},
         config_params={"scopes": "https://www.googleapis.com/auth/a,https://www.googleapis.com/auth/b"},
@@ -84,7 +90,11 @@ async def test_gcp_service_account_signs_jwt_and_uses_impersonated_subject():
         request=httpx.Request("POST", "https://oauth2.googleapis.com/token"),
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=response) as mock_post:
+    now = int(time.time())
+    with (
+        patch("guardette.default_auth.gcp_service_account.time.time", return_value=now),
+        patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=response) as mock_post,
+    ):
         await gcp_service_account(ctx)
 
     authorization = ctx.request.headers["authorization"]
@@ -103,12 +113,13 @@ async def test_gcp_service_account_signs_jwt_and_uses_impersonated_subject():
     assert claims["iss"] == credentials["client_email"]
     assert claims["sub"] == "impersonated@example.com"
     assert claims["scope"] == "https://www.googleapis.com/auth/a https://www.googleapis.com/auth/b"
-    assert 3599 <= claims["exp"] - claims["iat"] <= 3600
+    assert claims["iat"] == now
+    assert claims["exp"] - claims["iat"] == 3600
 
 
 @pytest.mark.anyio
-async def test_gcp_service_account_requires_scopes_before_network_call():
-    credentials, _ = make_gcp_credentials()
+async def test_gcp_service_account_requires_scopes_before_network_call(gcp_credentials):
+    credentials, _ = gcp_credentials
     ctx = make_auth_context(
         secret_params={"secret": json.dumps(credentials)},
         config_params={"scopes": ""},
@@ -125,8 +136,8 @@ async def test_gcp_service_account_requires_scopes_before_network_call():
 
 
 @pytest.mark.anyio
-async def test_gcp_service_account_surfaces_token_endpoint_errors():
-    credentials, _ = make_gcp_credentials()
+async def test_gcp_service_account_surfaces_token_endpoint_errors(gcp_credentials):
+    credentials, _ = gcp_credentials
     ctx = make_auth_context(
         secret_params={"secret": json.dumps(credentials)},
         config_params={"scopes": "scope"},
