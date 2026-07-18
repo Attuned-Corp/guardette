@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from guardette.config import ConfigManager
-from guardette.secrets import AwsSecretsManager, ConfigSecretsManager, ConfigurationException
+from guardette.secrets import (
+    AwsSecretsManager,
+    ConfigSecretsManager,
+    ConfigurationException,
+    SecretsRetrievalException,
+)
 
 
 @pytest.mark.anyio
@@ -102,3 +107,46 @@ async def test_aws_secrets_manager_caches_secrets(caplog):
     ]
     assert len(info_logs) == 1
     assert info_logs[0].correlation_id == "ijkl-9012"
+
+
+@pytest.mark.anyio
+async def test_aws_secrets_manager_refetches_at_cache_expiry():
+    config = ConfigManager()
+    config.get = Mock(return_value="test")
+    aws_secrets_manager = AwsSecretsManager(config)
+    aws_secrets_manager.cache_ttl_secs = 120
+
+    with (
+        patch("guardette.secrets.time.time", side_effect=[100, 220]),
+        patch("guardette.secrets.get_session") as mock_get_session,
+    ):
+        mock_client = Mock()
+        mock_get_session.return_value.create_client.return_value.__aenter__.return_value = mock_client
+        mock_client.get_secret_value = AsyncMock(
+            side_effect=[
+                {"SecretString": "first-secret"},
+                {"SecretString": "refreshed-secret"},
+            ]
+        )
+
+        assert await aws_secrets_manager.get("ROTATING_SECRET") == "first-secret"
+        assert await aws_secrets_manager.get("ROTATING_SECRET") == "refreshed-secret"
+
+    assert mock_client.get_secret_value.await_count == 2
+
+
+@pytest.mark.anyio
+async def test_aws_secrets_manager_wraps_client_errors():
+    config = ConfigManager()
+    config.get = Mock(return_value="test")
+    aws_secrets_manager = AwsSecretsManager(config)
+
+    with patch("guardette.secrets.get_session") as mock_get_session:
+        mock_client = Mock()
+        mock_get_session.return_value.create_client.return_value.__aenter__.return_value = mock_client
+        mock_client.get_secret_value = AsyncMock(side_effect=RuntimeError("AWS unavailable"))
+
+        with pytest.raises(SecretsRetrievalException, match="Error fetching secret from AWS"):
+            await aws_secrets_manager.get("BROKEN_SECRET", correlation_id="corr-123")
+
+    mock_client.get_secret_value.assert_awaited_once_with(SecretId="test")
