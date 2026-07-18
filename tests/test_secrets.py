@@ -4,7 +4,26 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from guardette.config import ConfigManager
-from guardette.secrets import AwsSecretsManager, ConfigurationException
+from guardette.secrets import AwsSecretsManager, ConfigSecretsManager, ConfigurationException
+
+
+@pytest.mark.anyio
+async def test_config_secrets_manager_returns_configured_secret():
+    config = ConfigManager()
+    config.get = Mock(return_value="configured-secret")
+
+    value = await ConfigSecretsManager(config).get("API_TOKEN", correlation_id="abcd-1234")
+
+    assert value == "configured-secret"
+
+
+@pytest.mark.anyio
+async def test_config_secrets_manager_reports_missing_secret():
+    config = ConfigManager()
+    config.get = Mock(return_value=None)
+
+    with pytest.raises(ConfigurationException, match="Missing secret for key"):
+        await ConfigSecretsManager(config).get("MISSING_SECRET")
 
 
 @pytest.mark.anyio
@@ -22,10 +41,10 @@ async def test_aws_secrets_manager_logs_fetching_secret(caplog):
 
         # Act
         with caplog.at_level(logging.INFO):
-            secret = await aws_secrets_manager.get("TEST_SECRET", correlation_id="abcd-1234")
+            value = await aws_secrets_manager.get("TEST_SECRET", correlation_id="abcd-1234")
 
     # Assert
-    assert secret == "mock_secret"
+    assert value == "mock_secret"
     assert any(
         record.levelname == "INFO"
         and record.message.startswith("Fetching secret from AWS")

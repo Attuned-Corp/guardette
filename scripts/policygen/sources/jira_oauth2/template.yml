@@ -1,0 +1,47 @@
+sources:
+  - host: api.atlassian.com
+    auth: oauth2_client_credentials:jira
+    rules:
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/search"
+        actions:
+        - kind: nullify
+          json_paths:
+          - '$.issues[*].changelog.histories[*].items[?(@.field = "summary")].fromString'
+          - '$.issues[*].changelog.histories[*].items[?(@.field = "summary")].toString'
+          - '$.issues[*].changelog.histories[*].items[?(@.field = "description")].fromString'
+          - '$.issues[*].changelog.histories[*].items[?(@.field = "description")].toString'
+          - $.issues[*].fields.worklog.worklogs[*].comment
+          - $.issues[*].renderedFields.worklog.worklogs[*].comment
+          - $.issues[*].versionedRepresentations
+          - $..description
+        - kind: redact_regex
+          json_paths:
+          - $..summary
+          # redact words 11 chars or longer, words that are numbers and dashes greather than 4 chars, and emails
+          regex_pattern: '\b(\w{11,}|[\d-]{5,}|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)\b'
+      - route: "GET /ex/jira/{cloudId}/rest/agile/1.0/board"
+      - route: "GET /ex/jira/{cloudId}/rest/agile/1.0/board/{boardId}/issue"
+        actions:
+        - kind: nullify
+          json_paths:
+          - $.issues[*].changelog
+          - $.issues[*].fields.worklog
+          - $.issues[*].renderedFields
+          - $.issues[*].versionedRepresentations
+          - $..summary
+          - $..description
+      - route: "GET /ex/jira/{cloudId}/rest/agile/1.0/board/{boardId}/sprint"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/users/search"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/group/bulk"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/project/search"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/field"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/field/{field_id}/context"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/field/{field_id}/context/{context_id}/option"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/status"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory"
+  - host: {{ config.jira_domain }}
+    auth: basic_auth:jira
+    rules:
+      # Only available on the tenant domain, even with an OAuth2 service account -
+      # not exposed through the api.atlassian.com gateway.
+      - route: "GET /rest/dev-status/1.0/issue/detail"

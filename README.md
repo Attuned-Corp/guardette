@@ -24,7 +24,7 @@ Span will send you a config file to generate your policy.yml with, but it might 
       "config": {}
     },
     {
-      "kind": "jira",
+      "kind": "jira_basic_auth",
       "config": {"jira_domain": "yourdomain.atlassian.net"}
     }
   ]
@@ -117,17 +117,37 @@ See [terraform/aws/README.md](terraform/aws/README.md) for full deployment instr
 
 ## Authentication Configuration
 
-Guardette supports multiple authentication handlers (`basic_auth`, `bearer_token`, `gcp_service_account`) defined in the `guardette/default_auth/` directory. When a policy specifies an auth handler, Guardette looks up the required credentials via environment variables.
+Guardette supports multiple authentication handlers (`basic_auth`, `bearer_token`, `gcp_service_account`, `oauth2_client_credentials`) defined in the `guardette/default_auth/` directory. When a policy specifies an auth handler, Guardette looks up the required credentials via environment variables.
 
 ### Naming Convention
 
-Auth credentials are resolved from environment variables following the pattern `AUTH_{HANDLER}_{SUBKIND}_{KEY}` (uppercased). The handler and key are determined by the auth handler's registration, and the subkind comes from your policy file.
+Each handler declares its own required **secret keys** (fetched via the [secret manager backend](#secret-manager-backends)) and **config keys** (always read directly from the environment, never from a secret manager). Given a policy `auth` value of `<handler>` or `<handler>:<subkind>`, the environment variable for one of its keys is:
+
+```
+AUTH_<HANDLER>_[<SUBKIND>_]<KEY>
+```
+
+(all uppercased, `<SUBKIND>_` only present if your policy's `auth` value includes a subkind).
+
+#### Handlers
+
+| Handler | Secret keys | Config keys |
+|---|---|---|
+| `basic_auth` | `username`, `password` | – |
+| `bearer_token` | `secret` | – |
+| `gcp_service_account` | `secret` | `scopes` |
+| `oauth2_client_credentials` | `client_id`, `client_secret` | `token_url` |
+
+#### Examples
+
+Apply the pattern above to each handler's keys to get the environment variables for a given policy `auth` value:
 
 | Policy `auth` value | Required environment variables |
 |---|---|
 | `basic_auth:jira` | `AUTH_BASIC_AUTH_JIRA_USERNAME`, `AUTH_BASIC_AUTH_JIRA_PASSWORD` |
 | `bearer_token:github` | `AUTH_BEARER_TOKEN_GITHUB_SECRET` |
-| `gcp_service_account` | `AUTH_GCP_SERVICE_ACCOUNT_SECRET`, `AUTH_GCP_SERVICE_ACCOUNT_SCOPES` |
+| `gcp_service_account` (no subkind) | `AUTH_GCP_SERVICE_ACCOUNT_SECRET`, `AUTH_GCP_SERVICE_ACCOUNT_SCOPES` |
+| `oauth2_client_credentials:jira` | `AUTH_OAUTH2_CLIENT_CREDENTIALS_JIRA_CLIENT_ID`, `AUTH_OAUTH2_CLIENT_CREDENTIALS_JIRA_CLIENT_SECRET`, `AUTH_OAUTH2_CLIENT_CREDENTIALS_JIRA_TOKEN_URL` |
 
 ### Secret Manager Backends
 
