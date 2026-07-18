@@ -29,7 +29,6 @@ async def test_config_secrets_manager_reports_missing_secret():
 
     with pytest.raises(ConfigurationException, match="Missing secret for key"):
         await ConfigSecretsManager(config).get("MISSING_SECRET")
->>>>>>> 1a00f91 (test: cover dependency-sensitive auth and secrets paths)
 
 
 @pytest.mark.anyio
