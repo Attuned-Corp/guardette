@@ -53,8 +53,7 @@ async def test_bearer_token_sets_bearer_authorization_header():
     await bearer_token(ctx)
 
     authorization = ctx.request.headers["authorization"]
-    expected_scheme = "".join(("B", "earer"))
-    assert authorization == f"{expected_scheme} token-value"
+    assert authorization == "Bearer token-value"
 
 
 def make_gcp_credentials():
@@ -98,8 +97,7 @@ async def test_gcp_service_account_signs_jwt_and_uses_impersonated_subject(gcp_c
         await gcp_service_account(ctx)
 
     authorization = ctx.request.headers["authorization"]
-    expected_scheme = "".join(("B", "earer"))
-    assert authorization == f"{expected_scheme} {response.json()['access_token']}"
+    assert authorization == f"Bearer {response.json()['access_token']}"
     mock_post.assert_awaited_once()
     kwargs = mock_post.await_args.kwargs
     assert kwargs["data"]["grant_type"] == "urn:ietf:params:oauth:grant-type:jwt-bearer"
