@@ -1,6 +1,7 @@
 import json
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from pytest import fixture
 
@@ -69,7 +70,10 @@ def test_observability_logs_safe_request_response_data_and_metrics(capsys):
 
     @app.post("/items/{item_id}")
     async def post_item(item_id: str):
-        return {"item_id": item_id, "body": "response-secret"}
+        return JSONResponse(
+            content={"item_id": item_id, "body": "response-secret"},
+            headers={PROXY_REQUEST_ID_HEADER: "untrusted-response-id"},
+        )
 
     response = TestClient(app).post(
         "/items/secret?query-secret=true",
@@ -91,6 +95,7 @@ def test_observability_logs_safe_request_response_data_and_metrics(capsys):
 
     assert response.status_code == 200
     assert response.headers[PROXY_REQUEST_ID_HEADER] == request_event["request_id"]
+    assert response.headers[PROXY_REQUEST_ID_HEADER] != "untrusted-response-id"
     assert request_event["route"] == "/items/{item_id}"
     assert request_event["headers"]["request"] == {
         "accept": "application/json",
