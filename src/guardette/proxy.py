@@ -1,5 +1,4 @@
 import functools
-import json
 import logging
 import time
 import uuid
@@ -24,8 +23,8 @@ from guardette.exceptions import (
     ProxyClientTimeoutException,
     TransformationException,
 )
-from guardette.logging import setup_logging
 from guardette.matching import Matcher, SourceMatcherResult
+from guardette.observability import configure_observability
 from guardette.policy import Policy
 from guardette.secrets import (
     AwsSecretsManager,
@@ -52,8 +51,6 @@ STRIP_RESPONSE_HEADERS = {
     "transfer-encoding",
 }
 
-
-setup_logging()
 
 logger = logging.getLogger("guardette")
 
@@ -84,18 +81,8 @@ def guardette_route():
         @functools.wraps(func)
         async def wrapped(*args, **kwargs):
             request: Request = kwargs.get("request") or args[0]
-            correlation_id = str(uuid.uuid4())
+            correlation_id = getattr(request.state, "correlation_id", None) or str(uuid.uuid4())
             request.state.correlation_id = correlation_id
-            logger.info(
-                "Incoming guardette request",
-                extra={
-                    "correlation_id": correlation_id,
-                    "method": request.method,
-                    "url": str(request.url),
-                    "client_host": request.client.host if request.client else "unknown",
-                    "proxy_host": request.headers.get(PROXY_HOST_HEADER, "unknown"),
-                },
-            )
             start_time = time.time()
 
             try:
@@ -106,12 +93,14 @@ def guardette_route():
                     type(ge), (500, "Internal Server Error", "GuardetteException encountered")
                 )
                 log_func = logger.warning if status_code < 500 else logger.error
+                if isinstance(ge, AuthException):
+                    _record_auth_failure(request)
                 log_func(
                     log_message,
                     exc_info=status_code >= 500,
                     extra={
                         "correlation_id": correlation_id,
-                        "exception": str(ge),
+                        "error_class": type(ge).__name__,
                         "elapsed_time": f"{elapsed_time:.3f}s",
                     },
                 )
@@ -123,7 +112,7 @@ def guardette_route():
                     exc_info=True,
                     extra={
                         "correlation_id": correlation_id,
-                        "exception": str(exc),
+                        "error_class": type(exc).__name__,
                         "elapsed_time": f"{elapsed_time:.3f}s",
                     },
                 )
@@ -133,18 +122,7 @@ def guardette_route():
                     "Internal Server Error",
                     details="An unexpected error occurred.",
                 )
-            else:
-                elapsed_time = time.time() - start_time
-                logger.info(
-                    "Guardette request processed successfully",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "status_code": response.status_code,
-                        "content_type": response.headers.get("Content-Type", "unknown"),
-                        "elapsed_time": f"{elapsed_time:.3f}s",
-                    },
-                )
-                return response
+            return response
 
         return wrapped
 
@@ -163,7 +141,13 @@ class Guardette:
                 for action in rule.actions:
                     action.validate_config(self.config)
 
-        logger.info("Guardette policy loaded", extra={"policy": json.dumps(self.policy.model_dump())})
+        logger.info(
+            "Guardette policy loaded",
+            extra={
+                "source_count": len(self.policy.sources),
+                "rule_count": sum(len(source.rules) for source in self.policy.sources),
+            },
+        )
 
         conf_secret_manager = self.config.SECRET_MANAGER
         if conf_secret_manager == SecretManagerType.DEFAULT:
@@ -275,7 +259,14 @@ class Guardette:
                 else:
                     raise HttpMethodNotSupportedException(f"Unexpected http method: {request.method}")
             except httpx.TimeoutException as e:
+                _record_upstream(request, "timeout", None)
                 raise ProxyClientTimeoutException(f"Request timed out: {e!s}") from e
+            except httpx.HTTPError:
+                _record_upstream(request, "error", None)
+                raise
+            else:
+                outcome = "success" if response.status_code < 500 else "error"
+                _record_upstream(request, outcome, response.status_code)
 
         try:
             proxy_response = await proxy_transformer.transform_response(request, response)
@@ -297,11 +288,24 @@ class Guardette:
         return self.auth.register(*args, **kwargs)
 
     def to_fastapi(self, app: FastAPI):
+        configure_observability(app)
         app.api_route("/_guardette/meta", methods=["GET"])(self._meta_route)
         app.api_route(
             "/{path:path}",
             methods=["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH"],
         )(self._proxy_route)
+
+
+def _record_auth_failure(request: Request) -> None:
+    observability = getattr(request.app.state, "observability", None)
+    if observability is not None:
+        observability.metrics.record_auth_failure("client")
+
+
+def _record_upstream(request: Request, outcome: str, status_code: int | None) -> None:
+    observability = getattr(request.app.state, "observability", None)
+    if observability is not None:
+        observability.metrics.record_upstream(outcome, status_code)
 
 
 class ProxyTransformer:
