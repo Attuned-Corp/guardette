@@ -18,13 +18,13 @@ dependencies = [
     "types-aiobotocore[secretsmanager]>=2.7.0",
     "certifi>=2023.7.22",
     "click>=8.1.7",
-    "cryptography>=41.0.5",
+    "cryptography>=48.0.1",
     "detect-secrets>=1.5.0",
     "fastapi>=0.103.2",
     "h11>=0.14.0",
     "httpcore>=0.18.0",
     "httpx>=0.25.0",
-    "idna>=3.4",
+    "idna>=3.15",
     "jsonpath-ng>=1.7.0",
     "ply>=3.11",
     "pydantic>=2.4.2",
@@ -34,9 +34,9 @@ dependencies = [
     "uvicorn>=0.23.2",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
-    "PyJWT[crypto]>=2.8.0",
+    "PyJWT[crypto]>=2.13.0",
     "yarl (>=1.24.0,<2.0)",
-    "aiohttp (==3.14.0)",
+    "aiohttp (==3.14.1)",
 ]
 
 [project.optional-dependencies]
