@@ -100,17 +100,6 @@ def guardette_route():
 
             try:
                 response = await func(*args, **kwargs)
-                elapsed_time = time.time() - start_time
-                logger.info(
-                    "Guardette request processed successfully",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "status_code": response.status_code,
-                        "content_type": response.headers.get("Content-Type", "unknown"),
-                        "elapsed_time": f"{elapsed_time:.3f}s",
-                    },
-                )
-                return response
             except GuardetteException as ge:
                 elapsed_time = time.time() - start_time
                 status_code, message, log_message = _EXCEPTION_RESPONSES.get(
@@ -144,6 +133,18 @@ def guardette_route():
                     "Internal Server Error",
                     details="An unexpected error occurred.",
                 )
+            else:
+                elapsed_time = time.time() - start_time
+                logger.info(
+                    "Guardette request processed successfully",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "status_code": response.status_code,
+                        "content_type": response.headers.get("Content-Type", "unknown"),
+                        "elapsed_time": f"{elapsed_time:.3f}s",
+                    },
+                )
+                return response
 
         return wrapped
 
@@ -208,7 +209,7 @@ class Guardette:
         )
 
     @guardette_route()
-    async def _proxy_route(self, request: Request):
+    async def _proxy_route(self, request: Request):  # noqa: PLR0912
         await self._validate_client_secret(request)
 
         target_host = request.headers.get(PROXY_HOST_HEADER)
@@ -274,7 +275,7 @@ class Guardette:
                 else:
                     raise HttpMethodNotSupportedException(f"Unexpected http method: {request.method}")
             except httpx.TimeoutException as e:
-                raise ProxyClientTimeoutException(f"Request timed out: {str(e)}") from e
+                raise ProxyClientTimeoutException(f"Request timed out: {e!s}") from e
 
         try:
             proxy_response = await proxy_transformer.transform_response(request, response)
@@ -380,7 +381,7 @@ class ProxyTransformer:
         correlation_id = in_request.state.correlation_id
 
         if self._proxy_request is None:
-            raise Exception(
+            raise TransformationException(
                 "Cannot call transform_response() without first calling transform_request()",
             )
         status_code = in_response.status_code

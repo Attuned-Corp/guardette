@@ -7,7 +7,7 @@ from guardette.actions import action_registry
 async def test_filter_regex(action_context):
     # Test case where regex matches
     action = action_registry.get_action_cls("filter_regex").model_validate(
-        dict(json_paths=["$.path.to.data"], regex_pattern="test", delimiter=" ")
+        {"json_paths": ["$.path.to.data"], "regex_pattern": "test", "delimiter": " "}
     )
     action_context.response.json_data = {"path": {"to": {"data": "test and test"}}}
     await action.response(action_context)
@@ -15,7 +15,7 @@ async def test_filter_regex(action_context):
 
     # Test case where regex does not match
     action = action_registry.get_action_cls("filter_regex").model_validate(
-        dict(json_paths=["$.path.to.data"], regex_pattern="no match")
+        {"json_paths": ["$.path.to.data"], "regex_pattern": "no match"}
     )
     action_context.response.json_data = {"path": {"to": {"data": "test data"}}}
     await action.response(action_context)
@@ -23,7 +23,7 @@ async def test_filter_regex(action_context):
 
     # Test case where json path does not exist
     action = action_registry.get_action_cls("filter_regex").model_validate(
-        dict(json_paths=["$.non.existent.path"], regex_pattern="test")
+        {"json_paths": ["$.non.existent.path"], "regex_pattern": "test"}
     )
     action_context.response.json_data = {"path": {"to": {"data": "test data"}}}
     await action.response(action_context)
@@ -34,14 +34,14 @@ async def test_filter_regex(action_context):
 async def test_redact_regex(action_context):
     redact_token = action_context.config.REDACT_TOKEN
     action = action_registry.get_action_cls("redact_regex").model_validate(
-        dict(
-            json_paths=[
+        {
+            "json_paths": [
                 "$.path.to.data1",
                 "$.path.to.data2",
                 '$.path.multiple[*].items[?(@.field = "summary")].text',
             ],
-            regex_pattern="test",
-        )
+            "regex_pattern": "test",
+        }
     )
     action_context.response.json_data = {
         "path": {
@@ -93,7 +93,7 @@ async def test_redact_secrets_gitlab_diff(action_context):
     )
     diff_clean = "--- a/README.md\n+++ b/README.md\n@@ -1,1 +1,1 @@\n-old title\n+new title\n"
 
-    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$[*].diff"]))
+    action = action_registry.get_action_cls("redact_secrets").model_validate({"json_paths": ["$[*].diff"]})
     action_context.response.json_data = [
         {"old_path": "config.py", "new_path": "config.py", "diff": diff_with_secret},
         {"old_path": "README.md", "new_path": "README.md", "diff": diff_clean},
@@ -121,7 +121,7 @@ async def test_redact_secrets_ignores_allowlist(action_context):
     redact_token = action_context.config.REDACT_TOKEN
     aws_key = "AKIAIOSFODNN7EXAMPLE"
 
-    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$.body"]))
+    action = action_registry.get_action_cls("redact_secrets").model_validate({"json_paths": ["$.body"]})
     action_context.response.json_data = {
         "body": f'AWS_KEY = "{aws_key}"  # pragma: allowlist secret',
     }
@@ -155,7 +155,7 @@ async def test_redact_secrets_ignores_allowlist(action_context):
 )
 async def test_redact_secrets_token_variants(action_context, token):
     redact_token = action_context.config.REDACT_TOKEN
-    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$.body"]))
+    action = action_registry.get_action_cls("redact_secrets").model_validate({"json_paths": ["$.body"]})
     action_context.response.json_data = {"body": f'TOKEN = "{token}"'}
 
     await action.response(action_context)
@@ -170,7 +170,7 @@ async def test_redact_secrets_multiple_tokens(action_context):
     pat1 = "glpat-abcdefghijklmnopqrst"
     pat2 = "glpat-zyxwvutsrqponmlkjihg"
 
-    action = action_registry.get_action_cls("redact_secrets").model_validate(dict(json_paths=["$.body"]))
+    action = action_registry.get_action_cls("redact_secrets").model_validate({"json_paths": ["$.body"]})
     action_context.response.json_data = {"body": f'A = "{pat1}"\nB = "{pat2}"'}
 
     await action.response(action_context)

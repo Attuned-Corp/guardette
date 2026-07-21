@@ -19,7 +19,11 @@ def list_events(calendar_id):
         "Authorization": token,
     }
 
-    response = requests.get(f"{proxy_base_url}/calendar/v3/calendars/{calendar_id}/events", headers=headers)
+    response = requests.get(
+        f"{proxy_base_url}/calendar/v3/calendars/{calendar_id}/events",
+        headers=headers,
+        timeout=30,
+    )
     response.raise_for_status()
     events = response.json()
     print(json.dumps(events, indent=4))
