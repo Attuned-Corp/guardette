@@ -104,6 +104,14 @@ curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com
 | `SECRET_MANAGER_CACHE_TTL_SECS` | No | `120` | Secret cache TTL in seconds |
 | `PSEUDONYMIZE_SALT` | No | `""` | Salt for email pseudonymization |
 | `PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST` | No | `""` | Comma-separated domain allowlist |
+| `OBS_ENABLED` | No | `false` | Master switch for application observability |
+| `OBS_REQUEST_LOGGING_ENABLED` | No | `false` | Opt-in safe request/response JSON logging |
+| `OBS_METRICS_ENABLED` | No | `false` | Opt-in low-cardinality metric events |
+| `SERVICE_NAME` | No | `guardette` | Service name in observability events |
+| `SERVICE_VERSION` | No | Package version | Service version in observability events |
+| `ENVIRONMENT` | No | `unknown` | Deployment environment in observability events |
+
+When enabled, request events include method, normalized route, status, duration, correlation ID, and a small allowlist of safe headers. Request/response bodies, query strings, authorization headers, cookies, tokens, API keys, and secrets are not logged. Metric events are emitted as structured JSON to `stdout`; native Cloudflare or OTLP metric export is a deployment concern.
 
 ## Deploying to AWS Lambda
 
