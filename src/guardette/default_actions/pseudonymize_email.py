@@ -21,7 +21,7 @@ class PseudonymizeEmail(Action):
     async def response(self, ctx: ActionContext):
         salt = await ctx.secrets.get("PSEUDONYMIZE_SALT")
 
-        def updater(email, data, k):
+        def updater(email, _data, _k):
             if not isinstance(email, str):
                 return email
 

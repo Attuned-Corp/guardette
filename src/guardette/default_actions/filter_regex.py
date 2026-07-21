@@ -1,30 +1,30 @@
 import re
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, PrivateAttr, model_validator
 
 from guardette.actions import Action, ActionContext, action_registry
 
 
 @action_registry.register("filter_regex")
 class FilterRegex(Action):
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     json_paths: list[str]
     regex_pattern: str
     delimiter: str = Field(default="")
-    compiled_pattern: re.Pattern | None = None
+    _compiled_pattern: re.Pattern | None = PrivateAttr(default=None)
 
     @model_validator(mode="after")
     def compile_regex(self):
         try:
-            self.compiled_pattern = re.compile(self.regex_pattern, re.I)
+            self._compiled_pattern = re.compile(self.regex_pattern, re.I)
         except re.error as e:
             raise ValueError(f"Invalid regex pattern '{self.regex_pattern}'") from e
         return self
 
     async def response(self, ctx: ActionContext):
-        def updater(text, data, k):
-            matches = self.compiled_pattern.findall(text)
+        def updater(text, _data, _k):
+            matches = self._compiled_pattern.findall(text)
             return self.delimiter.join(matches)
 
         for path in self.json_paths:

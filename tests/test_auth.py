@@ -25,8 +25,8 @@ def clear_token_cache():
 def make_ctx(
     *,
     client_id="client-id",
-    client_secret="client-secret",
-    token_url="https://auth.example.com/token",
+    client_secret="client-secret",  # noqa: S107
+    token_url="https://auth.example.com/token",  # noqa: S107
 ):
     return AuthContext(
         request=ProxyRequest(url="https://api.example.com", headers=MutableHeaders({}), json_data=None),
@@ -35,7 +35,7 @@ def make_ctx(
     )
 
 
-def mock_token_response(access_token="access-token-1", expires_in=3600, status_code=200):
+def mock_token_response(access_token="access-token-1", expires_in=3600, status_code=200):  # noqa: S107
     return httpx.Response(
         status_code=status_code,
         json={"access_token": access_token, "expires_in": expires_in},
@@ -99,11 +99,14 @@ async def test_oauth2_client_credentials_refetches_after_expiry():
         assert mock_post.call_count == 1
 
     # Force the cached token to be considered expired.
-    cache_key = _TokenCacheKey(token_url="https://auth.example.com/token", client_id="client-id")
+    cache_key = _TokenCacheKey(token_url="https://auth.example.com/token", client_id="client-id")  # noqa: S106
     cached = _token_cache[cache_key]
     _token_cache[cache_key] = _CachedToken(access_token=cached.access_token, expiry_time=0)
 
-    with patch("httpx.AsyncClient.post", return_value=mock_token_response(access_token="access-token-2")) as mock_post:
+    with patch(
+        "httpx.AsyncClient.post",
+        return_value=mock_token_response(access_token="access-token-2"),  # noqa: S106
+    ) as mock_post:
         await oauth2_client_credentials(ctx)
         assert mock_post.call_count == 1
 
@@ -126,8 +129,7 @@ async def test_oauth2_client_credentials_raises_on_error_status(mock_post):
 async def test_oauth2_client_credentials_requires_token_url():
     ctx = make_ctx(token_url=None)
 
-    with patch("httpx.AsyncClient.post") as mock_post:
-        with pytest.raises(AuthHandlerAuthException):
-            await oauth2_client_credentials(ctx)
+    with patch("httpx.AsyncClient.post") as mock_post, pytest.raises(AuthHandlerAuthException):
+        await oauth2_client_credentials(ctx)
 
     mock_post.assert_not_called()
