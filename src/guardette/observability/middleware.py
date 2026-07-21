@@ -20,7 +20,6 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         request_id = str(uuid.uuid4())
         request.state.correlation_id = request_id
-        request.state.observability = self.observability
         started_at = time.perf_counter()
 
         try:
@@ -31,7 +30,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             raise
 
         duration_seconds = time.perf_counter() - started_at
-        response.headers.setdefault(PROXY_REQUEST_ID_HEADER, request_id)
+        response.headers[PROXY_REQUEST_ID_HEADER] = request_id
         self._record_request(request, request_id, response.status_code, duration_seconds, response=response)
         return response
 
