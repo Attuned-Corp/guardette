@@ -102,8 +102,30 @@ curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com
 | `SECRET_MANAGER` | No | `default` | Secret manager backend (`default` or `aws_secret_manager`) |
 | `PROXY_CLIENT_TIMEOUT_SECS` | No | `60` | Proxy request timeout in seconds |
 | `SECRET_MANAGER_CACHE_TTL_SECS` | No | `120` | Secret cache TTL in seconds |
-| `PSEUDONYMIZE_SALT` | No | `""` | Salt for email pseudonymization |
+| `PSEUDONYMIZE_ALGORITHM` | No | `sha256` | Pseudonymization algorithm: `sha256` (legacy) or `hmac-sha256` |
+| `PSEUDONYMIZE_SALT` | Conditional | `""` | Non-empty secret input for legacy `sha256`; new deployments should use at least 32 random bytes |
+| `HMAC_KEY` | Conditional | `""` | Secret HMAC key for `hmac-sha256`; at least 32 bytes is enforced |
 | `PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST` | No | `""` | Comma-separated domain allowlist |
+
+### Pseudonymization algorithms
+
+`pseudonymize_email` remains the same policy action. Select its digest construction with `PSEUDONYMIZE_ALGORITHM`:
+
+| Algorithm | Construction | Secret variable | Characteristics |
+|---|---|---|---|
+| `sha256` | `SHA-256(value + PSEUDONYMIZE_SALT)` | `PSEUDONYMIZE_SALT` | Legacy default for compatibility; deterministic and non-reversible; not a standard keyed construction |
+| `hmac-sha256` | `HMAC-SHA-256(HMAC_KEY, context + value)` | `HMAC_KEY` | Recommended; deterministic and non-reversible; uses a standard keyed construction |
+
+Both modes preserve stable correlation and the existing `u-{hash}@d-{hash}.invalid` output format. Neither mode is encryption or reversible pseudonymization. Switching algorithms changes all generated pseudonyms.
+
+For new deployments, use at least 32 bytes of high-entropy material for either secret. HMAC mode enforces this minimum; legacy `sha256` accepts existing non-empty salts for compatibility. For an environment-safe textual value, generate either 44 base64 characters from 32 random bytes or 64 hexadecimal characters:
+
+```bash
+openssl rand -base64 32 | tr -d '\n'
+openssl rand -hex 32
+```
+
+Set the generated value as `PSEUDONYMIZE_SALT` for `sha256` or `HMAC_KEY` for `hmac-sha256`. When using AWS Secrets Manager, the environment variable contains the secret identifier and the stored secret value must meet the same requirement.
 
 ## Deploying to AWS Lambda
 
@@ -173,6 +195,8 @@ SECRET_MANAGER=aws_secret_manager
 AUTH_BASIC_AUTH_JIRA_USERNAME=arn:aws:secretsmanager:us-west-2:123456789012:secret:JIRA_USERNAME
 AUTH_BASIC_AUTH_JIRA_PASSWORD=arn:aws:secretsmanager:us-west-2:123456789012:secret:JIRA_PASSWORD
 ```
+
+For HMAC mode, set `PSEUDONYMIZE_ALGORITHM=hmac-sha256` and provide an ARN for `HMAC_KEY` instead of `PSEUDONYMIZE_SALT`.
 
 Best for: AWS Lambda deployments.
 

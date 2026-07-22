@@ -157,7 +157,7 @@ Scans string values with [detect-secrets](https://github.com/Yelp/detect-secrets
 
 ### `pseudonymize_email`
 
-Hashes email addresses into a deterministic pseudonymous format (`u-{hash}@d-{hash}.invalid`). The same email always produces the same pseudonym (given the same salt), preserving the ability to correlate records by email without exposing the real address.
+Transforms email addresses into a deterministic pseudonymous format (`u-{hash}@d-{hash}.invalid`). The same email always produces the same pseudonym for the selected secret and algorithm, preserving the ability to correlate records by email without exposing the real address. This is not encryption and is not reversible.
 
 ```yaml
 - kind: pseudonymize_email
@@ -173,8 +173,12 @@ Hashes email addresses into a deterministic pseudonymous format (`u-{hash}@d-{ha
 
 | Variable | Description |
 |---|---|
-| `PSEUDONYMIZE_SALT` | Non-empty salt string used for hashing. Must be set when this action is used. |
+| `PSEUDONYMIZE_ALGORITHM` | Optional. `sha256` (default, legacy) or `hmac-sha256`. |
+| `PSEUDONYMIZE_SALT` | Required when `PSEUDONYMIZE_ALGORITHM=sha256`. Used by the legacy `SHA-256(value + salt)` construction. |
+| `HMAC_KEY` | Required when `PSEUDONYMIZE_ALGORITHM=hmac-sha256`. Used as the HMAC-SHA-256 key. |
 | `PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST` | Optional. Comma-separated list of domains to skip pseudonymization (e.g., `example.com,company.org`). |
+
+For new deployments, both secret values should contain at least 32 bytes of high-entropy material. HMAC mode enforces this minimum, while legacy `sha256` continues to accept existing non-empty salts for compatibility. For text-based environment variables, `openssl rand -base64 32` produces a 44-character base64 value, while `openssl rand -hex 32` produces a 64-character hexadecimal value. The HMAC mode is the recommended construction; switching algorithms changes all generated pseudonyms.
 
 **Use when:** You need to preserve email-based join/correlation logic in downstream systems without exposing actual email addresses.
 
