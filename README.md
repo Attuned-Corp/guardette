@@ -118,14 +118,17 @@ curl -H "Authorization: secret" -H "X-Guardette-Host: hacker-news.firebaseio.com
 
 Both modes preserve stable correlation and the existing `u-{hash}@d-{hash}.invalid` output format. Neither mode is encryption or reversible pseudonymization. Switching algorithms changes all generated pseudonyms.
 
-For new deployments, use at least 32 bytes of high-entropy material for either secret. HMAC mode enforces this minimum; legacy `sha256` accepts existing non-empty salts for compatibility. For an environment-safe textual value, generate either 44 base64 characters from 32 random bytes or 64 hexadecimal characters:
+For new deployments, use at least 32 bytes of high-entropy material for either secret. HMAC mode enforces this minimum; legacy `sha256` accepts existing non-empty salts for compatibility. Do not use a password or human-readable value. Generate a safe key with OpenSSL:
 
 ```bash
-openssl rand -base64 32 | tr -d '\n'
+# Recommended for environment variables and .env files:
 openssl rand -hex 32
+
+# Alternatively, use Base64:
+openssl rand -base64 32 | tr -d '\n'
 ```
 
-Set the generated value as `PSEUDONYMIZE_SALT` for `sha256` or `HMAC_KEY` for `hmac-sha256`. When using AWS Secrets Manager, the environment variable contains the secret identifier and the stored secret value must meet the same requirement.
+Copy the generated value into `HMAC_KEY` when using `hmac-sha256`, or into `PSEUDONYMIZE_SALT` when using legacy `sha256`. Guardette treats the generated hex or Base64 text as the key directly; do not manually decode it. Keep the value out of source control and logs. When using AWS Secrets Manager, the environment variable contains the secret identifier and the stored secret value must meet the same requirement.
 
 ## Deploying to AWS Lambda
 
