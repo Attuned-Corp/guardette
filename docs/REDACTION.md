@@ -178,7 +178,17 @@ Transforms email addresses into a deterministic pseudonymous format (`u-{hash}@d
 | `HMAC_KEY` | Required when `PSEUDONYMIZE_ALGORITHM=hmac-sha256`. Used as the HMAC-SHA-256 key. |
 | `PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST` | Optional. Comma-separated list of domains to skip pseudonymization (e.g., `example.com,company.org`). |
 
-For new deployments, both secret values should contain at least 32 bytes of high-entropy material. HMAC mode enforces this minimum, while legacy `sha256` continues to accept existing non-empty salts for compatibility. For text-based environment variables, `openssl rand -base64 32` produces a 44-character base64 value, while `openssl rand -hex 32` produces a 64-character hexadecimal value. The HMAC mode is the recommended construction; switching algorithms changes all generated pseudonyms.
+For new deployments, both secret values should contain at least 32 bytes of high-entropy material. HMAC mode enforces this minimum, while legacy `sha256` continues to accept existing non-empty salts for compatibility. Do not use a password or human-readable value. Generate a safe key with OpenSSL:
+
+```bash
+# Recommended for environment variables and .env files:
+openssl rand -hex 32
+
+# Alternatively, use Base64:
+openssl rand -base64 32 | tr -d '\n'
+```
+
+Copy the generated value into `HMAC_KEY` for `hmac-sha256` or `PSEUDONYMIZE_SALT` for legacy `sha256`. Guardette treats the generated hex or Base64 text as the key directly; do not manually decode it. Keep the value out of source control and logs. The HMAC mode is the recommended construction; switching algorithms changes all generated pseudonyms.
 
 **Use when:** You need to preserve email-based join/correlation logic in downstream systems without exposing actual email addresses.
 
