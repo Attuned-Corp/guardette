@@ -142,13 +142,9 @@ class Guardette:
                 for action in rule.actions:
                     action.validate_config(self.config)
 
-        logger.info(
-            "Guardette policy loaded",
-            extra={
-                "source_count": len(self.policy.sources),
-                "rule_count": sum(len(source.rules) for source in self.policy.sources),
-            },
-        )
+        self._policy_source_count = len(self.policy.sources)
+        self._policy_rule_count = sum(len(source.rules) for source in self.policy.sources)
+        self._policy_load_logged = False
 
         conf_secret_manager = self.config.SECRET_MANAGER
         if conf_secret_manager == SecretManagerType.DEFAULT:
@@ -290,6 +286,15 @@ class Guardette:
 
     def to_fastapi(self, app: FastAPI):
         configure_observability(app)
+        if not self._policy_load_logged:
+            logger.info(
+                "Guardette policy loaded",
+                extra={
+                    "source_count": self._policy_source_count,
+                    "rule_count": self._policy_rule_count,
+                },
+            )
+            self._policy_load_logged = True
         app.api_route("/_guardette/meta", methods=["GET"])(self._meta_route)
         app.api_route(
             "/{path:path}",
