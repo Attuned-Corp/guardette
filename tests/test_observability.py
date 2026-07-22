@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from pytest import fixture
 
+from guardette import Guardette
 from guardette.constants import PROXY_REQUEST_ID_HEADER
 from guardette.logging import setup_logging
 from guardette.observability import configure_observability
@@ -16,6 +17,28 @@ from guardette.observability.headers import sanitize_headers
 def reset_logging():
     yield
     setup_logging(ObservabilityConfig())
+
+
+def test_policy_load_is_logged_after_observability_configuration(capsys):
+    app = FastAPI()
+    configure_observability(
+        app,
+        ObservabilityConfig(
+            enabled=True,
+            metrics_enabled=True,
+            environment="test",
+            version="test-version",
+        ),
+    )
+
+    guardette = Guardette(policy_path="tests/test_policy.yml")
+    guardette.to_fastapi(app)
+
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    policy_event = next(event for event in events if event.get("message") == "Guardette policy loaded")
+
+    assert policy_event["source_count"] == len(guardette.policy.sources)
+    assert policy_event["rule_count"] == sum(len(source.rules) for source in guardette.policy.sources)
 
 
 def test_observability_is_disabled_by_default(capsys):
