@@ -6,6 +6,7 @@ from typing import Protocol
 from guardette.actions import Action, ActionContext, action_registry
 from guardette.config import ConfigManager
 from guardette.exceptions import ConfigurationException
+from guardette.secrets import SecretManagerType
 
 _HMAC_KEY_MIN_BYTES = hashlib.sha256().digest_size
 
@@ -26,12 +27,16 @@ class _LegacySaltedSha256:
 class _HmacSha256:
     def __init__(self, key: str):
         self.key = key.encode()
-        if len(self.key) < _HMAC_KEY_MIN_BYTES:
-            raise ConfigurationException("HMAC_KEY must contain at least 32 bytes.")
+        _validate_hmac_key(key)
 
     def digest(self, part: str, value: str) -> bytes:
         message = f"guardette:pseudonymize_email:v1:{part}:{value}".encode()
         return hmac.new(self.key, message, hashlib.sha256).digest()
+
+
+def _validate_hmac_key(key: str) -> None:
+    if len(key.encode()) < _HMAC_KEY_MIN_BYTES:
+        raise ConfigurationException("HMAC_KEY must contain at least 32 bytes.")
 
 
 def _create_digest_strategy(config: ConfigManager, secret: str) -> _EmailDigestStrategy:
@@ -52,6 +57,8 @@ class PseudonymizeEmail(Action):
             raise ConfigurationException(
                 "HMAC_KEY environment variable must be set and non-empty when PSEUDONYMIZE_ALGORITHM is hmac-sha256."
             )
+        if config.PSEUDONYMIZE_ALGORITHM == "hmac-sha256" and config.SECRET_MANAGER == SecretManagerType.DEFAULT:
+            _validate_hmac_key(config.HMAC_KEY)
         if config.PSEUDONYMIZE_ALGORITHM == "sha256" and not config.PSEUDONYMIZE_SALT:
             raise ConfigurationException(
                 "PSEUDONYMIZE_SALT environment variable must be set and non-empty when "

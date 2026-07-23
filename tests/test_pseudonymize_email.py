@@ -82,14 +82,29 @@ def test_pseudonymize_email_hmac_requires_key(monkeypatch):
         action_cls.validate_config(config)
 
 
-@pytest.mark.anyio
-async def test_pseudonymize_email_hmac_rejects_short_key(monkeypatch):
+def test_pseudonymize_email_hmac_rejects_short_default_key(monkeypatch):
     monkeypatch.setenv("CLIENT_SECRET", "client-secret")
     monkeypatch.setenv("PSEUDONYMIZE_ALGORITHM", "hmac-sha256")
     monkeypatch.setenv("HMAC_KEY", "short")
 
     config = ConfigManager()
-    action = action_registry.get_action_cls("pseudonymize_email").model_validate({"json_paths": ["$.email"]})
+    action_cls = action_registry.get_action_cls("pseudonymize_email")
+
+    with pytest.raises(ConfigurationException, match="at least 32 bytes"):
+        action_cls.validate_config(config)
+
+
+@pytest.mark.anyio
+async def test_pseudonymize_email_hmac_rejects_short_external_secret(monkeypatch):
+    monkeypatch.setenv("CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("SECRET_MANAGER", "aws_secret_manager")
+    monkeypatch.setenv("PSEUDONYMIZE_ALGORITHM", "hmac-sha256")
+    monkeypatch.setenv("HMAC_KEY", "secret-identifier")
+
+    config = ConfigManager()
+    action_cls = action_registry.get_action_cls("pseudonymize_email")
+    action_cls.validate_config(config)
+    action = action_cls.model_validate({"json_paths": ["$.email"]})
     context = _action_context(config)
 
     with pytest.raises(ConfigurationException, match="at least 32 bytes"):
