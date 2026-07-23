@@ -26,18 +26,31 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         except Exception as exc:
             duration_seconds = time.perf_counter() - started_at
-            self._record_request(request, request_id, 500, duration_seconds, type(exc).__name__)
+            self._record_request(
+                request,
+                request_id,
+                status_code=500,
+                duration_seconds=duration_seconds,
+                error_class=type(exc).__name__,
+            )
             raise
 
         duration_seconds = time.perf_counter() - started_at
         response.headers[PROXY_REQUEST_ID_HEADER] = request_id
-        self._record_request(request, request_id, response.status_code, duration_seconds, response=response)
+        self._record_request(
+            request,
+            request_id,
+            status_code=response.status_code,
+            duration_seconds=duration_seconds,
+            response=response,
+        )
         return response
 
     def _record_request(
         self,
         request: Request,
         request_id: str,
+        *,
         status_code: int,
         duration_seconds: float,
         error_class: str | None = None,
