@@ -39,6 +39,8 @@ class CustomJSONFormatter(logging.Formatter):
 
         if record.exc_info:
             log_record["error_class"] = record.exc_info[0].__name__
+            if not isinstance(observability_event, dict):
+                log_record["exception"] = self.formatException(record.exc_info)
 
         for key in _SAFE_EXTRA_FIELDS:
             if key not in log_record and hasattr(record, key):

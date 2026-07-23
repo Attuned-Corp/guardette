@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -8,7 +9,7 @@ from pytest import fixture
 
 from guardette import Guardette
 from guardette.constants import PROXY_REQUEST_ID_HEADER
-from guardette.logging import setup_logging
+from guardette.logging import CustomJSONFormatter, setup_logging
 from guardette.observability import configure_observability
 from guardette.observability.config import ObservabilityConfig
 from guardette.observability.headers import sanitize_headers
@@ -72,6 +73,32 @@ def test_application_logs_remain_json_when_observability_is_disabled(capsys):
         "application warning",
     ]
     assert all(record["logger"] == "guardette" for record in records)
+
+
+def test_application_error_logs_include_formatted_exception():
+    formatter = CustomJSONFormatter()
+
+    def raise_error():
+        raise RuntimeError("root cause")
+
+    try:
+        raise_error()
+    except RuntimeError:
+        record = logging.LogRecord(
+            "guardette",
+            logging.ERROR,
+            __file__,
+            1,
+            "Unexpected error occurred",
+            (),
+            sys.exc_info(),
+        )
+
+    formatted = json.loads(formatter.format(record))
+
+    assert formatted["error_class"] == "RuntimeError"
+    assert "Traceback (most recent call last)" in formatted["exception"]
+    assert "RuntimeError: root cause" in formatted["exception"]
 
 
 def test_observability_config_requires_explicit_boolean_values(monkeypatch):
