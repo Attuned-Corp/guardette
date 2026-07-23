@@ -2,13 +2,14 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from guardette.logging import OBSERVABILITY_LOGGER_NAME
 from guardette.observability.config import ObservabilityConfig
 
 
 class EventLogger:
     def __init__(self, config: ObservabilityConfig):
         self._config = config
-        self._logger = logging.getLogger("guardette")
+        self._logger = logging.getLogger(OBSERVABILITY_LOGGER_NAME)
 
     def emit(self, event_name: str, fields: dict[str, Any]) -> None:
         if not self._config.active:

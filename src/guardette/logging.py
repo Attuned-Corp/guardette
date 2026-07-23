@@ -14,6 +14,7 @@ _SAFE_EXTRA_FIELDS = frozenset(
         "rule_count",
     },
 )
+OBSERVABILITY_LOGGER_NAME = "guardette.observability"
 
 
 class _DynamicStdoutHandler(logging.StreamHandler):
@@ -51,14 +52,19 @@ def setup_logging(config=None):
     formatter = CustomJSONFormatter()
 
     logger = logging.getLogger("guardette")
+    observability_logger = logging.getLogger(OBSERVABILITY_LOGGER_NAME)
     logger.setLevel(log_level)
+    observability_logger.setLevel(logging.INFO)
     observability_active = bool(config and config.active)
     logger.disabled = False
+    observability_logger.disabled = False
     logger.propagate = not observability_active
+    observability_logger.propagate = False
 
-    for handler in list(logger.handlers):
-        if getattr(handler, "_guardette_handler", False):
-            logger.removeHandler(handler)
+    for configured_logger in (logger, observability_logger):
+        for handler in list(configured_logger.handlers):
+            if getattr(handler, "_guardette_handler", False):
+                configured_logger.removeHandler(handler)
 
     if observability_active:
         console_handler = _DynamicStdoutHandler(sys.stdout)
@@ -66,3 +72,9 @@ def setup_logging(config=None):
         console_handler.setLevel(log_level)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
+
+        observability_handler = _DynamicStdoutHandler(sys.stdout)
+        observability_handler._guardette_handler = True
+        observability_handler.setLevel(logging.INFO)
+        observability_handler.setFormatter(formatter)
+        observability_logger.addHandler(observability_handler)

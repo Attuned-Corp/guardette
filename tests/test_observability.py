@@ -1,4 +1,5 @@
 import json
+import logging
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -136,6 +137,37 @@ def test_observability_logs_safe_request_response_data_and_metrics(capsys):
     assert "request-secret" not in output
     assert "response-secret" not in output
     assert "query-secret" not in output
+
+
+def test_observability_events_ignore_general_log_level(monkeypatch, capsys):
+    monkeypatch.setenv("LOG_LEVEL", "WARNING")
+    app = FastAPI()
+    configure_observability(
+        app,
+        ObservabilityConfig(
+            enabled=True,
+            metrics_enabled=True,
+            environment="test",
+            version="test-version",
+        ),
+    )
+
+    @app.get("/items")
+    async def get_items():
+        return {"items": []}
+
+    logger = logging.getLogger("guardette")
+    logger.info("filtered application info")
+    logger.warning("visible application warning")
+
+    response = TestClient(app).get("/items")
+    output = capsys.readouterr().out
+    events = [json.loads(line) for line in output.splitlines()]
+
+    assert response.status_code == 200
+    assert "filtered application info" not in output
+    assert "visible application warning" in output
+    assert any(event.get("event") == "guardette.metric" for event in events)
 
 
 def test_sanitize_headers_uses_allowlist_and_bounds_values():
