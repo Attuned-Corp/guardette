@@ -15,7 +15,8 @@ def test_config_manager_parses_environment_settings(monkeypatch):
     monkeypatch.setenv("CLIENT_SECRET", "client-secret")
     monkeypatch.setenv("PSEUDONYMIZE_SALT", "salt")
     monkeypatch.setenv("PSEUDONYMIZE_ALGORITHM", "hmac-sha256")
-    monkeypatch.setenv("HMAC_KEY", "hmac-key")
+    hmac_key = "hmac-key-" + "a" * 32
+    monkeypatch.setenv("HMAC_KEY", hmac_key)
     monkeypatch.setenv("PROXY_CLIENT_TIMEOUT_SECS", "30")
     monkeypatch.setenv("SECRET_MANAGER_CACHE_TTL_SECS", "45")
     monkeypatch.setenv("PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST", "Example.COM,internal.test")
@@ -25,7 +26,7 @@ def test_config_manager_parses_environment_settings(monkeypatch):
     assert config.CLIENT_SECRET == "client-secret"  # noqa: S105
     assert config.PSEUDONYMIZE_SALT == "salt"
     assert config.PSEUDONYMIZE_ALGORITHM == "hmac-sha256"
-    assert config.HMAC_KEY == "hmac-key"
+    assert hmac_key == config.HMAC_KEY
     assert config.PROXY_CLIENT_TIMEOUT_SECS == 30
     assert config.SECRET_MANAGER_CACHE_TTL_SECS == 45
     assert config.PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST == ("example.com", "internal.test")
