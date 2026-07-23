@@ -58,7 +58,7 @@ def setup_logging(config=None):
     observability_active = bool(config and config.active)
     logger.disabled = False
     observability_logger.disabled = False
-    logger.propagate = not observability_active
+    logger.propagate = False
     observability_logger.propagate = False
 
     for configured_logger in (logger, observability_logger):
@@ -66,13 +66,13 @@ def setup_logging(config=None):
             if getattr(handler, "_guardette_handler", False):
                 configured_logger.removeHandler(handler)
 
-    if observability_active:
-        console_handler = _DynamicStdoutHandler(sys.stdout)
-        console_handler._guardette_handler = True
-        console_handler.setLevel(log_level)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    console_handler = _DynamicStdoutHandler(sys.stdout)
+    console_handler._guardette_handler = True
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
+    if observability_active:
         observability_handler = _DynamicStdoutHandler(sys.stdout)
         observability_handler._guardette_handler = True
         observability_handler.setLevel(logging.INFO)

@@ -57,6 +57,23 @@ def test_observability_is_disabled_by_default(capsys):
     assert capsys.readouterr().out == ""
 
 
+def test_application_logs_remain_json_when_observability_is_disabled(capsys):
+    app = FastAPI()
+    configure_observability(app, ObservabilityConfig())
+
+    logger = logging.getLogger("guardette")
+    logger.info("application info")
+    logger.warning("application warning")
+
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+
+    assert [record["message"] for record in records] == [
+        "application info",
+        "application warning",
+    ]
+    assert all(record["logger"] == "guardette" for record in records)
+
+
 def test_observability_config_requires_explicit_boolean_values(monkeypatch):
     monkeypatch.setenv("OBS_ENABLED", "true")
     monkeypatch.setenv("OBS_REQUEST_LOGGING_ENABLED", "on")
