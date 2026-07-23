@@ -58,7 +58,7 @@ def setup_logging(config=None):
     observability_active = bool(config and config.active)
     logger.disabled = False
     observability_logger.disabled = False
-    logger.propagate = False
+    logger.propagate = not observability_active
     observability_logger.propagate = False
 
     for configured_logger in (logger, observability_logger):
