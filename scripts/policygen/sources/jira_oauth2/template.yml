@@ -33,6 +33,7 @@ sources:
       - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory/{id}"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/remotelink"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/issuetype"
   - host: {{ config.jira_domain }}
     auth: basic_auth:jira
     rules:

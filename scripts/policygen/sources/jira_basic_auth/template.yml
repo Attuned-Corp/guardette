@@ -33,5 +33,6 @@ source:
     - route: "GET /rest/api/3/statuscategory"
     - route: "GET /rest/api/3/statuscategory/{id}"
     - route: "GET /rest/api/3/issue/{issueIdOrKey}/remotelink"
+    - route: "GET /rest/api/3/issuetype"
     - route: "GET /rest/dev-status/1.0/issue/detail"
 
