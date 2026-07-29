@@ -2,7 +2,7 @@ sources:
   - host: api.atlassian.com
     auth: oauth2_client_credentials:jira
     rules:
-      - route: "GET /ex/jira/{cloudId}/rest/api/3/search"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/search/jql"
         actions:
         - kind: nullify
           json_paths:
