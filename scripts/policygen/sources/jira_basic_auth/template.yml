@@ -2,7 +2,7 @@ source:
   host: {{ config.jira_domain }}
   auth: basic_auth:jira
   rules:
-    - route: "GET /rest/api/3/search"
+    - route: "GET /rest/api/3/search/jql"
       actions:
       - kind: nullify
         json_paths:

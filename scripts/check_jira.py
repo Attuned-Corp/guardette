@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlencode
 
 import requests
 
@@ -27,9 +28,15 @@ def jira_apis(token, jira_host, proxy_base_url):
     output_dir.mkdir(exist_ok=True)
 
     do_request(f"{proxy_base_url}/rest/api/3/users/search", headers=headers)
-    response = do_request(
-        f"{proxy_base_url}/rest/api/3/search?fields=*all&expand=renderedFields,transitions,changelog", headers=headers
+    bounded_jql = "updated >= -30d ORDER BY updated ASC"
+    issues_query = urlencode(
+        {
+            "jql": bounded_jql,
+            "fields": "*all",
+            "expand": "renderedFields,transitions,changelog",
+        }
     )
+    response = do_request(f"{proxy_base_url}/rest/api/3/search/jql?{issues_query}", headers=headers)
 
     (output_dir / "jira_issues_response.json").write_text(json.dumps(response, indent=4))
 
