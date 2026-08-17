@@ -28,6 +28,7 @@ source:
     - route: "GET /rest/agile/1.0/board/{boardId}/sprint"
     - route: "GET /rest/api/3/users/search"
     - route: "GET /rest/api/3/project/search"
+    - route: "GET /rest/api/3/project/{projectKey}/version"
     - route: "GET /rest/api/3/field"
     - route: "GET /rest/api/3/status"
     - route: "GET /rest/api/3/statuscategory"
@@ -35,4 +36,3 @@ source:
     - route: "GET /rest/api/3/issue/{issueIdOrKey}/remotelink"
     - route: "GET /rest/api/3/issuetype"
     - route: "GET /rest/dev-status/1.0/issue/detail"
-
