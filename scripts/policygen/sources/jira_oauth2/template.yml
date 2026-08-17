@@ -28,6 +28,7 @@ sources:
       - route: "GET /ex/jira/{cloudId}/rest/agile/1.0/board/{boardId}/sprint"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/users/search"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/project/search"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/project/{projectKey}/version"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/field"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/status"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory"
