@@ -147,7 +147,7 @@ async def test_redact_secrets_ignores_allowlist(action_context):
         _test_token("gl", "soat-", "abcdefghijklmnopqrst"),
         _test_token("gl", "rt-", "abcdefghijklmnopqrst"),
         _test_token("gl", "cbt-", "abcdefghijklmnopqrst"),
-        _test_token("gl", "cbt-", "ab_cdefghijklmnopqrstuv"),
+        _test_token("gl", "cbt-", "ab_", "cdef", "ghij", "klmn", "opqr", "stuv"),
         _test_token("gl", "agent-", "a" * 50),
         _test_token("gl", "oas-", "a" * 64),
         _test_token("gh", "p_", "a" * 36),
