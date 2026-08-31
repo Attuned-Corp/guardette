@@ -3,6 +3,10 @@ import pytest
 from guardette.actions import action_registry
 
 
+def _test_token(*parts: str) -> str:
+    return "".join(parts)
+
+
 @pytest.mark.anyio
 async def test_filter_regex(action_context):
     # Test case where regex matches
@@ -137,20 +141,20 @@ async def test_redact_secrets_ignores_allowlist(action_context):
 @pytest.mark.parametrize(
     "token",
     [
-        "glpat-abcdefghijklmnopqrst",
-        "gldt-abcdefghijklmnopqrst",
-        "glft-abcdefghijklmnopqrst",
-        "glsoat-abcdefghijklmnopqrst",
-        "glrt-abcdefghijklmnopqrst",
-        "glcbt-abcdefghijklmnopqrst",
-        "glcbt-ab_cdefghijklmnopqrstuv",
-        "glagent-" + "a" * 50,
-        "gloas-" + "a" * 64,
-        "ghp_" + "a" * 36,
-        "gho_" + "a" * 36,
-        "ghu_" + "a" * 36,
-        "ghs_" + "a" * 36,
-        "ghr_" + "a" * 36,
+        _test_token("gl", "pat-", "abcdefghijklmnopqrst"),
+        _test_token("gl", "dt-", "abcdefghijklmnopqrst"),
+        _test_token("gl", "ft-", "abcdefghijklmnopqrst"),
+        _test_token("gl", "soat-", "abcdefghijklmnopqrst"),
+        _test_token("gl", "rt-", "abcdefghijklmnopqrst"),
+        _test_token("gl", "cbt-", "abcdefghijklmnopqrst"),
+        _test_token("gl", "cbt-", "ab_cdefghijklmnopqrstuv"),
+        _test_token("gl", "agent-", "a" * 50),
+        _test_token("gl", "oas-", "a" * 64),
+        _test_token("gh", "p_", "a" * 36),
+        _test_token("gh", "o_", "a" * 36),
+        _test_token("gh", "u_", "a" * 36),
+        _test_token("gh", "s_", "a" * 36),
+        _test_token("gh", "r_", "a" * 36),
     ],
 )
 async def test_redact_secrets_token_variants(action_context, token):
@@ -167,8 +171,8 @@ async def test_redact_secrets_token_variants(action_context, token):
 @pytest.mark.anyio
 async def test_redact_secrets_multiple_tokens(action_context):
     redact_token = action_context.config.REDACT_TOKEN
-    pat1 = "glpat-abcdefghijklmnopqrst"
-    pat2 = "glpat-zyxwvutsrqponmlkjihg"
+    pat1 = _test_token("gl", "pat-", "abcdefghijklmnopqrst")
+    pat2 = _test_token("gl", "pat-", "zyxwvutsrqponmlkjihg")
 
     action = action_registry.get_action_cls("redact_secrets").model_validate({"json_paths": ["$.body"]})
     action_context.response.json_data = {"body": f'A = "{pat1}"\nB = "{pat2}"'}
