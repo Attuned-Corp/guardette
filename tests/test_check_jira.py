@@ -18,11 +18,14 @@ def test_do_request_returns_json_and_preserves_timeout(monkeypatch):
     def fake_get(url, *args, **kwargs):
         assert url == "https://jira.example.test/api"
         assert kwargs["timeout"] == 5
+        assert kwargs["allow_redirects"] is False
         return response
 
     monkeypatch.setattr(check_jira.requests, "get", fake_get)
 
-    assert check_jira.do_request("https://jira.example.test/api", timeout=5) == {"ok": True}
+    assert check_jira.do_request("https://jira.example.test/api", allowed_host="jira.example.test", timeout=5) == {
+        "ok": True
+    }
 
 
 def test_do_request_raises_for_non_success_response(monkeypatch):
@@ -33,12 +36,21 @@ def test_do_request_raises_for_non_success_response(monkeypatch):
     monkeypatch.setattr(check_jira.requests, "get", lambda *_args, **_kwargs: response)
 
     try:
-        check_jira.do_request("https://jira.example.test/api")
+        check_jira.do_request("https://jira.example.test/api", allowed_host="jira.example.test")
     except requests.HTTPError as error:
         assert "503" in str(error)
         assert error.response is response
     else:
         raise AssertionError("Expected requests.HTTPError")
+
+
+def test_do_request_rejects_unexpected_hosts():
+    try:
+        check_jira.do_request("https://metadata.google.internal/api", allowed_host="jira.example.test")
+    except ValueError as error:
+        assert "configured proxy host" in str(error)
+    else:
+        raise AssertionError("Expected ValueError")
 
 
 def test_jira_apis_creates_output_directory(monkeypatch, tmp_path):
