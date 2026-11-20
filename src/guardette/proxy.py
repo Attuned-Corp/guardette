@@ -92,7 +92,7 @@ def guardette_route():
                 extra={
                     "correlation_id": correlation_id,
                     "method": request.method,
-                    "url": str(request.url),
+                    "url": str(request.url.replace(query="", fragment="")),
                     "client_host": request.client.host if request.client else "unknown",
                     "proxy_host": request.headers.get(PROXY_HOST_HEADER, "unknown"),
                 },
