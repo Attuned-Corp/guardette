@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import httpx
@@ -6,6 +7,7 @@ from starlette.datastructures import MutableHeaders
 
 from guardette.auth import AuthContext
 from guardette.datastructures import ProxyRequest
+from guardette.default_auth.gcp_service_account import gcp_service_account
 from guardette.default_auth.oauth2_client_credentials import (
     _CachedToken,
     _token_cache,
@@ -133,3 +135,73 @@ async def test_oauth2_client_credentials_requires_token_url():
         await oauth2_client_credentials(ctx)
 
     mock_post.assert_not_called()
+
+
+def make_gcp_ctx(*, header=None, allowed=None):
+    headers = {"X-Guardette-Gcp-Impersonate-Sub": header} if header else {}
+    return AuthContext(
+        request=ProxyRequest(url="https://api.example.com", headers=MutableHeaders(headers), json_data=None),
+        secret_params={"secret": json.dumps({"client_email": "sa@proj.iam.gserviceaccount.com", "private_key": "k"})},
+        config_params={"scopes": "scope1", "impersonate_subs": allowed},
+    )
+
+
+def gcp_token_response():
+    return httpx.Response(
+        status_code=200,
+        json={"access_token": "gcp-token"},
+        request=httpx.Request("POST", "https://oauth2.googleapis.com/token"),
+    )
+
+
+@pytest.mark.anyio
+async def test_gcp_service_account_rejects_unlisted_subject():
+    ctx = make_gcp_ctx(header="victim@example.com", allowed=None)
+
+    with (
+        patch("jwt.encode") as mock_encode,
+        patch("httpx.AsyncClient.post") as mock_post,
+        pytest.raises(AuthHandlerAuthException),
+    ):
+        await gcp_service_account(ctx)
+
+    mock_encode.assert_not_called()
+    mock_post.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_gcp_service_account_rejects_subject_not_in_allowlist():
+    ctx = make_gcp_ctx(header="victim@example.com", allowed="a@example.com,b@example.com")
+
+    with patch("httpx.AsyncClient.post") as mock_post, pytest.raises(AuthHandlerAuthException):
+        await gcp_service_account(ctx)
+
+    mock_post.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_gcp_service_account_allows_listed_subject():
+    ctx = make_gcp_ctx(header="B@example.com", allowed="a@example.com, b@example.com")
+
+    with (
+        patch("jwt.encode", return_value="signed") as mock_encode,
+        patch("httpx.AsyncClient.post", return_value=gcp_token_response()),
+    ):
+        await gcp_service_account(ctx)
+
+    assert mock_encode.call_args.args[0]["sub"] == "b@example.com"
+    assert ctx.request.headers["authorization"] == "Bearer gcp-token"
+    assert "x-guardette-gcp-impersonate-sub" not in ctx.request.headers
+
+
+@pytest.mark.anyio
+async def test_gcp_service_account_defaults_to_service_account_identity():
+    ctx = make_gcp_ctx()
+
+    with (
+        patch("jwt.encode", return_value="signed") as mock_encode,
+        patch("httpx.AsyncClient.post", return_value=gcp_token_response()),
+    ):
+        await gcp_service_account(ctx)
+
+    assert mock_encode.call_args.args[0]["sub"] == "sa@proj.iam.gserviceaccount.com"

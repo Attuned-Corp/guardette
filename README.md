@@ -135,7 +135,7 @@ AUTH_<HANDLER>_[<SUBKIND>_]<KEY>
 |---|---|---|
 | `basic_auth` | `username`, `password` | – |
 | `bearer_token` | `secret` | – |
-| `gcp_service_account` | `secret` | `scopes` |
+| `gcp_service_account` | `secret` | `scopes`, `impersonate_subs` (optional) |
 | `oauth2_client_credentials` | `client_id`, `client_secret` | `token_url` |
 
 #### Examples
@@ -148,6 +148,8 @@ Apply the pattern above to each handler's keys to get the environment variables 
 | `bearer_token:github` | `AUTH_BEARER_TOKEN_GITHUB_SECRET` |
 | `gcp_service_account` (no subkind) | `AUTH_GCP_SERVICE_ACCOUNT_SECRET`, `AUTH_GCP_SERVICE_ACCOUNT_SCOPES` |
 | `oauth2_client_credentials:jira` | `AUTH_OAUTH2_CLIENT_CREDENTIALS_JIRA_CLIENT_ID`, `AUTH_OAUTH2_CLIENT_CREDENTIALS_JIRA_CLIENT_SECRET`, `AUTH_OAUTH2_CLIENT_CREDENTIALS_JIRA_TOKEN_URL` |
+
+For `gcp_service_account`, clients may request a Google Workspace impersonation subject with the `X-Guardette-Gcp-Impersonate-Sub` header, but only if the subject is listed in the operator-controlled `AUTH_GCP_SERVICE_ACCOUNT_IMPERSONATE_SUBS` (comma-separated, case-insensitive). The default is deny: requests for any other subject are rejected, and without the header the service account's own identity is used.
 
 ### Secret Manager Backends
 
