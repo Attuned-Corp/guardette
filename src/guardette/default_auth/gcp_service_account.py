@@ -10,10 +10,25 @@ from guardette.exceptions import AuthHandlerAuthException
 GCP_IMPERSONATE_SUB_HEADER = "X-Guardette-Gcp-Impersonate-Sub"
 
 
-@auth_registry.register("gcp_service_account", secret_keys=["secret"], config_keys=["scopes"])
+def _resolve_subject(ctx: AuthContext, default_sub: str) -> str:
+    requested = ctx.request.headers.get(GCP_IMPERSONATE_SUB_HEADER)
+    if not requested:
+        return default_sub
+
+    configured = (ctx.config_params.get("impersonate_subs") or "").split(",")
+    allowed = {sub.strip().lower(): sub.strip() for sub in configured if sub.strip()}
+    match = allowed.get(requested.strip().lower())
+    if match is None:
+        raise AuthHandlerAuthException("gcp_service_account: requested impersonation subject is not allowed.")
+    return match
+
+
+@auth_registry.register("gcp_service_account", secret_keys=["secret"], config_keys=["scopes", "impersonate_subs"])
 async def gcp_service_account(ctx: AuthContext):
     credentials = json.loads(ctx.secret_params["secret"])
-    sub = ctx.request.headers.get(GCP_IMPERSONATE_SUB_HEADER) or credentials["client_email"]
+    sub = _resolve_subject(ctx, credentials["client_email"])
+    if GCP_IMPERSONATE_SUB_HEADER in ctx.request.headers:
+        del ctx.request.headers[GCP_IMPERSONATE_SUB_HEADER]
 
     if not ctx.config_params["scopes"]:
         raise AuthHandlerAuthException("gcp_service_account: `scopes` is required.")
