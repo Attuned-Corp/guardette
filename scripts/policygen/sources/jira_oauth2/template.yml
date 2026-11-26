@@ -2,6 +2,9 @@ sources:
   - host: api.atlassian.com
     auth: oauth2_client_credentials:jira
     rules:
+      # Site discovery and granted-scope check when connecting.
+      - route: "GET /oauth/token/accessible-resources"
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/myself"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/search/jql"
         actions:
         - kind: nullify
@@ -33,6 +36,30 @@ sources:
       - route: "GET /ex/jira/{cloudId}/rest/api/3/status"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory/{id}"
+      # Fallback for issues returned without their project; requested with fields=project.
+      # Numeric ids only, so sibling endpoints such as issue/picker stay blocked.
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/issue/{issueId:int}"
+        actions:
+        - kind: nullify
+          json_paths:
+          - $.changelog
+          - $.fields.comment
+          - $.fields.worklog
+          - $.renderedFields
+          - $.versionedRepresentations
+          - $..description
+        - kind: redact_regex
+          json_paths:
+          - $..summary
+          regex_pattern: '\b(\w{11,}|[\d-]{5,}|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)\b'
+      - route: "GET /ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/changelog"
+        actions:
+        - kind: nullify
+          json_paths:
+          - $.values[*].items[?(@.field == "summary")].fromString
+          - $.values[*].items[?(@.field == "summary")].toString
+          - $.values[*].items[?(@.field == "description")].fromString
+          - $.values[*].items[?(@.field == "description")].toString
       - route: "GET /ex/jira/{cloudId}/rest/api/3/issue/{issueIdOrKey}/remotelink"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/issuetype"
   - host: {{ config.jira_domain }}
