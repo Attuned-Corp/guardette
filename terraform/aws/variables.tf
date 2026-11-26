@@ -41,7 +41,9 @@ variable "environment_vars" {
       contains([
         "SECRET_MANAGER",
         "CLIENT_SECRET",
+        "PSEUDONYMIZE_ALGORITHM",
         "PSEUDONYMIZE_SALT",
+        "HMAC_KEY",
         "PSEUDONYMIZE_EMAIL_DOMAINS_ALLOWLIST"
       ], key)
     ])
@@ -51,4 +53,3 @@ variable "environment_vars" {
   sensitive = true
   nullable  = false
 }
-
