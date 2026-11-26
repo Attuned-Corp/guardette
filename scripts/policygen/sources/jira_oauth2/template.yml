@@ -8,6 +8,8 @@ sources:
           json_paths:
           - $.issues[*].fields.worklog.worklogs[*].comment
           - $.issues[*].renderedFields.worklog.worklogs[*].comment
+          - $.issues[*].fields.comment
+          - $.issues[*].renderedFields.comment
           - $.issues[*].versionedRepresentations
           - $..description
         - kind: redact_regex
@@ -22,13 +24,22 @@ sources:
           json_paths:
           - $.issues[*].fields.worklog
           - $.issues[*].renderedFields
+          - $.issues[*].fields.comment
           - $.issues[*].versionedRepresentations
           - $..summary
           - $..description
       - route: "GET /ex/jira/{cloudId}/rest/agile/1.0/board/{boardId}/sprint"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/users/search"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/project/search"
+        actions:
+        - kind: nullify
+          json_paths:
+          - $..description
       - route: "GET /ex/jira/{cloudId}/rest/api/3/project/{projectKey}/version"
+        actions:
+        - kind: nullify
+          json_paths:
+          - $..description
       - route: "GET /ex/jira/{cloudId}/rest/api/3/field"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/status"
       - route: "GET /ex/jira/{cloudId}/rest/api/3/statuscategory"
